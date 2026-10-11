@@ -1,0 +1,133 @@
+"""A small dependency-free text summarization agent."""
+
+from __future__ import annotations
+
+import argparse
+import re
+import sys
+from collections import Counter
+from dataclasses import dataclass
+from pathlib import Path
+
+
+STOP_WORDS = {
+    "a", "an", "and", "are", "as", "at", "be", "by", "for", "from", "has",
+    "have", "in", "is", "it", "its", "of", "on", "or", "that", "the", "this",
+    "to", "was", "were", "will", "with", "you", "your",
+}
+WORD_PATTERN = re.compile(r"[A-Za-z][A-Za-z'-]*")
+SENTENCE_PATTERN = re.compile(r"(?<=[.!?])\s+|\n+")
+DATE_PATTERN = re.compile(
+    r"\b(?:\d{1,2}[/-]\d{1,2}[/-]\d{2,4}|\d{4}[/-]\d{1,2}[/-]\d{1,2}|"
+    r"(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|"
+    r"Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|"
+    r"Dec(?:ember)?)\s+\d{1,2}(?:,\s+\d{4})?)\b",
+    re.IGNORECASE,
+)
+
+
+@dataclass(frozen=True)
+class Analysis:
+    """The information extracted from a document."""
+
+    title: str
+    key_points: list[str]
+    keywords: list[str]
+    dates: list[str]
+
+
+def split_sentences(text: str) -> list[str]:
+    """Split text into readable, non-empty sentence-like units."""
+    return [part.strip() for part in SENTENCE_PATTERN.split(text) if part.strip()]
+
+
+def extract_analysis(text: str, max_points: int = 3) -> Analysis:
+    """Extract a title, key points, keywords, and dates from text."""
+    sentences = split_sentences(text)
+    title = sentences[0] if sentences else "Untitled document"
+
+    words = [word.lower() for word in WORD_PATTERN.findall(text)]
+    frequencies = Counter(word for word in words if word not in STOP_WORDS)
+    keywords = [word for word, _ in frequencies.most_common(5)]
+
+    scored_sentences = []
+    for index, sentence in enumerate(sentences):
+        sentence_words = {
+            word.lower() for word in WORD_PATTERN.findall(sentence)
+            if word.lower() not in STOP_WORDS
+        }
+        score = sum(frequencies[word] for word in sentence_words)
+        scored_sentences.append((score, -index, sentence))
+
+    ranked = sorted(scored_sentences, reverse=True)[:max_points]
+    key_points = [sentence for _, _, sentence in sorted(ranked, key=lambda item: -item[1])]
+    dates = list(dict.fromkeys(DATE_PATTERN.findall(text)))
+
+    return Analysis(title=title, key_points=key_points, keywords=keywords, dates=dates)
+
+
+def format_report(analysis: Analysis, summary: str) -> str:
+    """Render analysis results as a human-readable report."""
+    lines = [
+        f"Title: {analysis.title}",
+        "",
+        "Summary:",
+        summary or "No summary could be generated because the document is empty.",
+        "",
+        "Key information:",
+    ]
+    lines.extend(f"- {point}" for point in analysis.key_points)
+    lines.extend(["", f"Keywords: {', '.join(analysis.keywords) or 'None'}"])
+    lines.append(f"Dates: {', '.join(analysis.dates) or 'None'}")
+    return "\n".join(lines)
+
+
+def summarize_file(input_path: Path, max_sentences: int = 3) -> str:
+    """Read and summarize a UTF-8 text file."""
+    text = input_path.read_text(encoding="utf-8")
+    analysis = extract_analysis(text, max_points=max_sentences)
+    summary = " ".join(analysis.key_points)
+    return format_report(analysis, summary)
+
+
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        description="Read a text file, extract key information, and produce a summary."
+    )
+    parser.add_argument("input", type=Path, help="path to a UTF-8 text file")
+    parser.add_argument(
+        "-o", "--output", type=Path, help="write the report to a file instead of stdout"
+    )
+    parser.add_argument(
+        "-n",
+        "--sentences",
+        type=int,
+        default=3,
+        help="maximum number of sentences in the summary (default: 3)",
+    )
+    return parser
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = build_parser()
+    args = parser.parse_args(argv)
+    if args.sentences < 1:
+        parser.error("--sentences must be at least 1")
+
+    try:
+        report = summarize_file(args.input, max_sentences=args.sentences)
+        if args.output:
+            args.output.write_text(report + "\n", encoding="utf-8")
+        else:
+            print(report)
+    except FileNotFoundError:
+        parser.error(f"input file not found: {args.input}")
+    except UnicodeDecodeError:
+        parser.error(f"input file is not valid UTF-8: {args.input}")
+    except OSError as error:
+        parser.error(str(error))
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
