@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import math
 import re
 import sys
 from collections import Counter
@@ -50,13 +51,23 @@ def extract_analysis(text: str, max_points: int = 3) -> Analysis:
     frequencies = Counter(word for word in words if word not in STOP_WORDS)
     keywords = [word for word, _ in frequencies.most_common(5)]
 
+    # Build per-sentence word sets once so IDF can be computed in O(n) passes.
+    sentence_word_sets = [
+        {w.lower() for w in WORD_PATTERN.findall(s) if w.lower() not in STOP_WORDS}
+        for s in sentences
+    ]
+    n = len(sentences)
+
     scored_sentences = []
-    for index, sentence in enumerate(sentences):
-        sentence_words = {
-            word.lower() for word in WORD_PATTERN.findall(sentence)
-            if word.lower() not in STOP_WORDS
-        }
-        score = sum(frequencies[word] for word in sentence_words)
+    for index, (sentence, word_set) in enumerate(zip(sentences, sentence_word_sets)):
+        score = 0.0
+        for word in word_set:
+            # TF: global frequency acts as a proxy for within-document importance.
+            tf = frequencies[word]
+            # IDF: down-weight words that appear in many sentences (not distinctive).
+            doc_count = sum(1 for ws in sentence_word_sets if word in ws)
+            idf = math.log((n + 1) / (doc_count + 1)) + 1.0
+            score += tf * idf
         scored_sentences.append((score, -index, sentence))
 
     ranked = sorted(scored_sentences, reverse=True)[:max_points]
