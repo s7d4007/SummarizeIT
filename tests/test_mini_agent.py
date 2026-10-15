@@ -65,6 +65,28 @@ class MiniAgentTests(unittest.TestCase):
 
         self.assertEqual(analysis.key_points, ["Alpha alpha alpha.", "Beta beta."])
 
+    def test_extract_analysis_rejects_invalid_max_points(self):
+        for max_points in (0, -1):
+            with self.subTest(max_points=max_points):
+                with self.assertRaisesRegex(ValueError, "max_points must be at least 1"):
+                    extract_analysis("A sentence.", max_points=max_points)
+
+        with self.assertRaisesRegex(TypeError, "max_points must be an integer"):
+            extract_analysis("A sentence.", max_points=1.5)
+
+    def test_summarize_file_rejects_invalid_max_sentences_before_reading(self):
+        missing_path = Path("missing-document.txt")
+
+        for max_sentences in (0, -1):
+            with self.subTest(max_sentences=max_sentences):
+                with self.assertRaisesRegex(
+                    ValueError, "max_sentences must be at least 1"
+                ):
+                    summarize_file(missing_path, max_sentences=max_sentences)
+
+        with self.assertRaisesRegex(TypeError, "max_sentences must be an integer"):
+            summarize_file(missing_path, max_sentences=1.5)
+
     def test_parser_rejects_non_positive_sentence_limit(self):
         for sentence_limit in ("0", "-1"):
             with self.subTest(sentence_limit=sentence_limit):

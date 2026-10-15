@@ -37,6 +37,14 @@ class Analysis:
     dates: list[str]
 
 
+def _validate_positive_limit(value: int, argument_name: str) -> None:
+    """Reject summary limits that cannot select any sentences."""
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise TypeError(f"{argument_name} must be an integer")
+    if value < 1:
+        raise ValueError(f"{argument_name} must be at least 1")
+
+
 def split_sentences(text: str) -> list[str]:
     """Split text into readable, non-empty sentence-like units."""
     return [part.strip() for part in SENTENCE_PATTERN.split(text) if part.strip()]
@@ -44,6 +52,7 @@ def split_sentences(text: str) -> list[str]:
 
 def extract_analysis(text: str, max_points: int = 3) -> Analysis:
     """Extract a title, key points, keywords, and dates from text."""
+    _validate_positive_limit(max_points, "max_points")
     sentences = split_sentences(text)
     title = sentences[0] if sentences else "Untitled document"
 
@@ -95,6 +104,7 @@ def format_report(analysis: Analysis, summary: str) -> str:
 
 def summarize_file(input_path: Path, max_sentences: int = 3) -> str:
     """Read and summarize a UTF-8 text file."""
+    _validate_positive_limit(max_sentences, "max_sentences")
     text = input_path.read_text(encoding="utf-8")
     analysis = extract_analysis(text, max_points=max_sentences)
     summary = " ".join(analysis.key_points)
