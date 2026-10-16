@@ -38,6 +38,18 @@ class MiniAgentTests(unittest.TestCase):
             ["First point.", "Second point!", "Third point?"],
         )
 
+    def test_split_sentences_preserves_abbreviations_and_decimal_numbers(self):
+        text = "Dr. Smith reviewed version 1.2. The result was good. See e.g. the report."
+
+        self.assertEqual(
+            split_sentences(text),
+            [
+                "Dr. Smith reviewed version 1.2.",
+                "The result was good.",
+                "See e.g. the report.",
+            ],
+        )
+
     def test_extract_analysis_deduplicates_dates_in_source_order(self):
         text = (
             "The review starts on March 5, 2026. "

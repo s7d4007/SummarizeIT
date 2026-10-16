@@ -17,7 +17,10 @@ STOP_WORDS = {
     "to", "was", "were", "will", "with", "you", "your",
 }
 WORD_PATTERN = re.compile(r"[A-Za-z][A-Za-z'-]*")
-SENTENCE_PATTERN = re.compile(r"(?<=[.!?])\s+|\n+")
+ABBREVIATIONS = {
+    "approx.", "dept.", "dr.", "e.g.", "etc.", "fig.", "i.e.", "jr.",
+    "mr.", "mrs.", "ms.", "no.", "prof.", "sr.", "vs.",
+}
 DATE_PATTERN = re.compile(
     r"\b(?:\d{1,2}[/-]\d{1,2}[/-]\d{2,4}|\d{4}[/-]\d{1,2}[/-]\d{1,2}|"
     r"(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|"
@@ -45,9 +48,50 @@ def _validate_positive_limit(value: int, argument_name: str) -> None:
         raise ValueError(f"{argument_name} must be at least 1")
 
 
+def _is_sentence_boundary(text: str, index: int) -> bool:
+    """Return whether punctuation at index ends a sentence."""
+    punctuation = text[index]
+    if punctuation != ".":
+        return True
+
+    start = index
+    while start > 0 and not text[start - 1].isspace():
+        start -= 1
+    token = text[start : index + 1]
+    previous = text[index - 1] if index else ""
+    following = text[index + 1] if index + 1 < len(text) else ""
+
+    if previous.isdigit() and following.isdigit():
+        return False
+    if token.lower() in ABBREVIATIONS:
+        return False
+    if len(token) == 2 and token[0].isupper():
+        return False
+    if token.count(".") > 1 and token[-2:-1].isalpha():
+        return False
+    return True
+
+
 def split_sentences(text: str) -> list[str]:
     """Split text into readable, non-empty sentence-like units."""
-    return [part.strip() for part in SENTENCE_PATTERN.split(text) if part.strip()]
+    sentences = []
+    start = 0
+    for index, character in enumerate(text):
+        if character == "\n" or (
+            character in ".!?" and _is_sentence_boundary(text, index)
+        ):
+            following = index + 1
+            if following < len(text) and not text[following].isspace():
+                continue
+            sentence = text[start:following].strip()
+            if sentence:
+                sentences.append(sentence)
+            start = following
+
+    trailing = text[start:].strip()
+    if trailing:
+        sentences.append(trailing)
+    return sentences
 
 
 def extract_analysis(text: str, max_points: int = 3) -> Analysis:
