@@ -79,7 +79,10 @@ def extract_analysis(text: str, max_points: int = 3) -> Analysis:
             score += tf * idf
         scored_sentences.append((score, -index, sentence))
 
-    ranked = sorted(scored_sentences, reverse=True)[:max_points]
+    ranked = sorted(
+        (item for item in scored_sentences if item[0] > 0),
+        reverse=True,
+    )[:max_points]
     key_points = [sentence for _, _, sentence in sorted(ranked, key=lambda item: -item[1])]
     dates = list(dict.fromkeys(DATE_PATTERN.findall(text)))
 

@@ -56,7 +56,12 @@ class MiniAgentTests(unittest.TestCase):
         analysis = extract_analysis("The and of in.")
 
         self.assertEqual(analysis.keywords, [])
-        self.assertEqual(analysis.key_points, ["The and of in."])
+        self.assertEqual(analysis.key_points, [])
+
+    def test_zero_score_sentences_are_not_selected_with_meaningful_sentences(self):
+        analysis = extract_analysis("The and of in. Search results are ready.", max_points=3)
+
+        self.assertEqual(analysis.key_points, ["Search results are ready."])
 
     def test_max_points_limits_key_points_without_reordering_them(self):
         text = "Alpha alpha alpha. Beta beta. Gamma."
