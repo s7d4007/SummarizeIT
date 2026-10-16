@@ -160,7 +160,14 @@ def summarize_file(input_path: Path, max_sentences: int = 3) -> str:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="Read a text file, extract key information, and produce a summary."
+        description="Read a UTF-8 text file, extract key information, and produce a summary.",
+        epilog=(
+            "Windows examples:\n"
+            "  PowerShell: py mini_agent.py document.txt\n"
+            "  Command Prompt: py mini_agent.py document.txt --output report.txt\n"
+            "Use quotes around paths that contain spaces."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser.add_argument("input", type=Path, help="path to a UTF-8 text file")
     parser.add_argument(
