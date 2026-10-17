@@ -16,66 +16,139 @@ class SummarizeApp:
         self.root = root
         self.current_path: Path | None = None
         self.root.title("SummarizeIT")
-        self.root.geometry("1000x700")
-        self.root.minsize(760, 520)
+        self.root.geometry("1080x720")
+        self.root.minsize(820, 560)
 
+        self.style = ttk.Style(root)
+        self._configure_theme()
         self._build_layout()
+
+    def _configure_theme(self) -> None:
+        """Use the platform theme and mirror its colors in the text editors."""
+        self.style.configure("App.TFrame", padding=0)
+        self.style.configure("Title.TLabel", font=("TkDefaultFont", 18, "bold"))
+        self.style.configure("Subtitle.TLabel", font=("TkDefaultFont", 9))
+        self.style.configure("Primary.TButton", padding=(14, 7))
+        self.style.configure("Quiet.TButton", padding=(10, 7))
+        self.style.configure("Status.TLabel", padding=(0, 8))
+
+        self.editor_background = self.style.lookup(
+            "TEntry", "fieldbackground", default=self.style.lookup("TFrame", "background")
+        )
+        self.editor_foreground = self.style.lookup(
+            "TEntry", "foreground", default=self.style.lookup("TLabel", "foreground")
+        )
+        self.editor_select_background = self.style.lookup(
+            "TEntry", "selectbackground", default=self.editor_foreground
+        )
+        self.editor_select_foreground = self.style.lookup(
+            "TEntry", "selectforeground", default=self.editor_background
+        )
 
     def _build_layout(self) -> None:
         self.root.columnconfigure(0, weight=1)
         self.root.rowconfigure(1, weight=1)
 
-        toolbar = ttk.Frame(self.root, padding=(12, 12, 12, 6))
+        toolbar = ttk.Frame(self.root, style="App.TFrame", padding=(28, 24, 28, 16))
         toolbar.grid(row=0, column=0, sticky="ew")
-        toolbar.columnconfigure(5, weight=1)
+        toolbar.columnconfigure(1, weight=1)
 
-        ttk.Button(toolbar, text="Open file", command=self.open_file).grid(
+        heading = ttk.Frame(toolbar, style="App.TFrame")
+        heading.grid(row=0, column=0, sticky="w")
+        ttk.Label(heading, text="SummarizeIT", style="Title.TLabel").grid(
+            row=0, column=0, sticky="w"
+        )
+        ttk.Label(
+            heading,
+            text="Offline document summary",
+            style="Subtitle.TLabel",
+        ).grid(row=1, column=0, pady=(2, 0), sticky="w")
+
+        actions = ttk.Frame(toolbar, style="App.TFrame")
+        actions.grid(row=0, column=1, sticky="e")
+        ttk.Button(actions, text="Open", style="Quiet.TButton", command=self.open_file).grid(
             row=0, column=0, padx=(0, 8)
         )
-        ttk.Button(toolbar, text="Summarize", command=self.summarize).grid(
-            row=0, column=1, padx=(0, 8)
-        )
-        ttk.Button(toolbar, text="Save report", command=self.save_report).grid(
-            row=0, column=2, padx=(0, 16)
-        )
-        ttk.Label(toolbar, text="Summary sentences:").grid(row=0, column=3)
+        ttk.Button(
+            actions, text="Save report", style="Quiet.TButton", command=self.save_report
+        ).grid(row=0, column=1, padx=(0, 16))
+        ttk.Label(actions, text="Length").grid(row=0, column=2, padx=(0, 6))
         self.sentence_limit = tk.IntVar(value=3)
         ttk.Spinbox(
-            toolbar, from_=1, to=20, textvariable=self.sentence_limit, width=5
-        ).grid(row=0, column=4, padx=(6, 0))
-        self.file_label = ttk.Label(toolbar, text="No file selected")
-        self.file_label.grid(row=0, column=5, padx=(16, 0), sticky="e")
+            actions, from_=1, to=20, textvariable=self.sentence_limit, width=4
+        ).grid(row=0, column=3, padx=(0, 10))
+        ttk.Button(
+            actions, text="Summarize", style="Primary.TButton", command=self.summarize
+        ).grid(row=0, column=4)
+
+        self.file_label = ttk.Label(
+            toolbar, text="No document selected", style="Subtitle.TLabel"
+        )
+        self.file_label.grid(row=1, column=0, columnspan=2, pady=(10, 0), sticky="w")
 
         content = ttk.Panedwindow(self.root, orient=tk.VERTICAL)
-        content.grid(row=1, column=0, padx=12, pady=(0, 8), sticky="nsew")
+        content.grid(row=1, column=0, padx=28, pady=(0, 8), sticky="nsew")
 
-        input_frame = ttk.Labelframe(content, text="Document", padding=8)
+        input_frame = ttk.Frame(content, style="App.TFrame", padding=(0, 4, 0, 12))
         input_frame.columnconfigure(0, weight=1)
         input_frame.rowconfigure(0, weight=1)
-        self.input_text = tk.Text(input_frame, wrap="word", undo=True)
-        self.input_text.grid(row=0, column=0, sticky="nsew")
+        ttk.Label(input_frame, text="DOCUMENT", style="Subtitle.TLabel").grid(
+            row=0, column=0, pady=(0, 6), sticky="w"
+        )
+        input_frame.rowconfigure(1, weight=1)
+        self.input_text = tk.Text(
+            input_frame,
+            wrap="word",
+            undo=True,
+            relief="flat",
+            borderwidth=0,
+            padx=12,
+            pady=12,
+            background=self.editor_background,
+            foreground=self.editor_foreground,
+            insertbackground=self.editor_foreground,
+            selectbackground=self.editor_select_background,
+            selectforeground=self.editor_select_foreground,
+        )
+        self.input_text.grid(row=1, column=0, sticky="nsew")
         input_scrollbar = ttk.Scrollbar(
             input_frame, orient="vertical", command=self.input_text.yview
         )
-        input_scrollbar.grid(row=0, column=1, sticky="ns")
+        input_scrollbar.grid(row=1, column=1, sticky="ns")
         self.input_text.configure(yscrollcommand=input_scrollbar.set)
         content.add(input_frame, weight=1)
 
-        output_frame = ttk.Labelframe(content, text="Report", padding=8)
+        output_frame = ttk.Frame(content, style="App.TFrame", padding=(0, 12, 0, 4))
         output_frame.columnconfigure(0, weight=1)
-        output_frame.rowconfigure(0, weight=1)
-        self.output_text = tk.Text(output_frame, wrap="word", state="disabled")
-        self.output_text.grid(row=0, column=0, sticky="nsew")
+        ttk.Label(output_frame, text="REPORT", style="Subtitle.TLabel").grid(
+            row=0, column=0, pady=(0, 6), sticky="w"
+        )
+        output_frame.rowconfigure(1, weight=1)
+        self.output_text = tk.Text(
+            output_frame,
+            wrap="word",
+            state="disabled",
+            relief="flat",
+            borderwidth=0,
+            padx=12,
+            pady=12,
+            background=self.editor_background,
+            foreground=self.editor_foreground,
+            insertbackground=self.editor_foreground,
+            selectbackground=self.editor_select_background,
+            selectforeground=self.editor_select_foreground,
+        )
+        self.output_text.grid(row=1, column=0, sticky="nsew")
         output_scrollbar = ttk.Scrollbar(
             output_frame, orient="vertical", command=self.output_text.yview
         )
-        output_scrollbar.grid(row=0, column=1, sticky="ns")
+        output_scrollbar.grid(row=1, column=1, sticky="ns")
         self.output_text.configure(yscrollcommand=output_scrollbar.set)
         content.add(output_frame, weight=1)
 
         self.status = tk.StringVar(value="Ready")
-        ttk.Label(self.root, textvariable=self.status, relief="sunken", anchor="w").grid(
-            row=2, column=0, padx=12, pady=(0, 8), sticky="ew"
+        ttk.Label(self.root, textvariable=self.status, style="Status.TLabel", anchor="w").grid(
+            row=2, column=0, padx=28, pady=(0, 12), sticky="ew"
         )
 
     def open_file(self) -> None:
