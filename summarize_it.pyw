@@ -1,4 +1,4 @@
 from gui import main
 
 
-main()
+raise SystemExit(main())

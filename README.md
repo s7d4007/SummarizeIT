@@ -1,6 +1,6 @@
 # Mini AI Agent
 
-`mini_agent.py` is a small, dependency-free Python agent that reads a UTF-8 text file, extracts key information, and creates an extractive summary. It uses sentence scoring based on the most frequent meaningful words, so it works offline and does not require an API key.
+`mini_agent.py` is a small Python agent that reads a UTF-8 text file, extracts key information, and creates an extractive summary. It uses sentence scoring based on the most frequent meaningful words, so it works offline and does not require an API key. `gui.py` provides the optional PySide6 desktop application.
 
 ## Windows setup and usage
 
@@ -11,7 +11,49 @@ During installation, enable **Add Python to PATH**. Open a new PowerShell window
 py --version
 ```
 
-The `py` launcher is the recommended Windows command because it selects the installed Python 3 interpreter reliably. This project has no third-party dependencies, so there is no package-installation step or virtual environment required.
+The `py` launcher is the recommended Windows command because it selects the installed Python 3 interpreter reliably. The command-line summarizer uses only the standard library. The desktop app requires PySide6.
+
+## Desktop app setup
+
+Install the GUI dependency from the project directory:
+
+```powershell
+py -m pip install -r requirements.txt
+```
+
+Then double-click `summarize_it.pyw`, or launch it with:
+
+```powershell
+pyw summarize_it.pyw
+```
+
+The app supports opening and saving UTF-8 text files, drag-and-drop loading,
+editable document input, configurable summary length, keyboard shortcuts, and
+a dark Qt interface with native file dialogs. The summarization logic remains
+in `mini_agent.py` and is shared by both the CLI and the GUI.
+
+## Dependencies and attribution
+
+The GUI has one direct dependency:
+
+- **PySide6**, version 6.12.0, licensed under the GNU Lesser
+  General Public License v3.0 (LGPL-3.0), GNU General Public License v3.0
+  (GPL-3.0), or a commercial Qt license. PySide6 provides the Qt for Python
+  bindings and the Qt desktop libraries used by this application. See the
+  [PySide6 licensing page](https://doc.qt.io/qtforpython-6/licenses.html) and
+  the [Qt licensing page](https://www.qt.io/licensing) for the official terms.
+
+Installing PySide6 also installs its official runtime components, including
+`PySide6_Essentials`, `PySide6_Addons`, `PySide6_Pdf`, `PySide6_WebEngine`, and
+`shiboken6`. Those packages are distributed by the Qt for Python project and
+are covered by the same available LGPL/GPL/commercial licensing model. This
+project does not bundle modified Qt source, third-party icon packs, fonts, or
+images. The interface uses Qt's built-in standard icons and platform dialogs.
+
+When distributing the desktop app, keep the PySide6 license notices and the
+corresponding Qt license texts with the distribution, and comply with the
+license option selected for your deployment. The application code in this
+repository is separate from Qt and does not change Qt's license terms.
 
 ## Usage
 
