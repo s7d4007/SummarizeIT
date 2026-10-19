@@ -299,6 +299,12 @@ class SummarizeWindow(QMainWindow):
             self.output_text.setPlainText(self.report_text)
             self.save_button.setEnabled(True)
             self.status.setText("Summary ready.")
+        except Exception as error:
+            self.report_text = ""
+            self.output_text.clear()
+            self.save_button.setEnabled(False)
+            self.status.setText("Summary failed.")
+            self._show_error("Summary failed", str(error))
         finally:
             self._set_busy(False)
 
