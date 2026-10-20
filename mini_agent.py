@@ -104,11 +104,15 @@ def extract_analysis(text: str, max_points: int = 3) -> Analysis:
     frequencies = Counter(word for word in words if word not in STOP_WORDS)
     keywords = [word for word, _ in frequencies.most_common(5)]
 
-    # Build per-sentence word sets once so IDF can be computed in O(n) passes.
+    # Build per-sentence word sets once so IDF can be computed without rescanning
+    # every sentence for each word.
     sentence_word_sets = [
         {w.lower() for w in WORD_PATTERN.findall(s) if w.lower() not in STOP_WORDS}
         for s in sentences
     ]
+    sentence_frequencies = Counter(
+        word for word_set in sentence_word_sets for word in word_set
+    )
     n = len(sentences)
 
     scored_sentences = []
@@ -118,7 +122,7 @@ def extract_analysis(text: str, max_points: int = 3) -> Analysis:
             # TF: global frequency acts as a proxy for within-document importance.
             tf = frequencies[word]
             # IDF: down-weight words that appear in many sentences (not distinctive).
-            doc_count = sum(1 for ws in sentence_word_sets if word in ws)
+            doc_count = sentence_frequencies[word]
             idf = math.log((n + 1) / (doc_count + 1)) + 1.0
             score += tf * idf
         scored_sentences.append((score, -index, sentence))
