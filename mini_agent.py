@@ -195,16 +195,20 @@ def main(argv: list[str] | None = None) -> int:
 
     try:
         report = summarize_file(args.input, max_sentences=args.sentences)
-        if args.output:
-            args.output.write_text(report + "\n", encoding="utf-8")
-        else:
-            print(report)
     except FileNotFoundError:
         parser.error(f"input file not found: {args.input}")
     except UnicodeDecodeError:
         parser.error(f"input file is not valid UTF-8: {args.input}")
     except OSError as error:
         parser.error(str(error))
+
+    if args.output:
+        try:
+            args.output.write_text(report + "\n", encoding="utf-8")
+        except OSError as error:
+            parser.error(f"could not write output file: {error}")
+    else:
+        print(report)
     return 0
 
 
