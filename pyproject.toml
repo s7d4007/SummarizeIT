@@ -1,0 +1,36 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "summarizeit"
+version = "0.1.0"
+description = "Offline extractive text summarizer with an optional PySide6 desktop interface"
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [
+    { name = "SummarizeIT contributors" },
+]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Operating System :: Microsoft :: Windows",
+    "Environment :: Console",
+    "Environment :: X11 Applications :: Qt",
+]
+
+[project.scripts]
+summarizeit = "mini_agent:main"
+summarizeit-gui = "gui:main"
+
+[project.optional-dependencies]
+gui = [
+    "PySide6==6.12.0",
+]
+build = [
+    "build>=1.2",
+    "pyinstaller>=6.0",
+]
+
+[tool.setuptools]
+py-modules = ["mini_agent", "gui"]

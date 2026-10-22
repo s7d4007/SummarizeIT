@@ -1,4 +1,4 @@
-# Mini AI Agent
+# SummarizeIT
 
 `mini_agent.py` is a small Python agent that reads a UTF-8 text file, extracts key information, and creates an extractive summary. It uses sentence scoring based on the most frequent meaningful words, so it works offline and does not require an API key. `gui.py` provides the optional PySide6 desktop application.
 
@@ -12,6 +12,29 @@ py --version
 ```
 
 The `py` launcher is the recommended Windows command because it selects the installed Python 3 interpreter reliably. The command-line summarizer uses only the standard library. The desktop app requires PySide6.
+
+## Install as a command-line tool
+
+From the project directory, install the offline CLI:
+
+```powershell
+py -m pip install .
+```
+
+This adds the `summarizeit` command:
+
+```powershell
+summarizeit document.txt --sentences 5 --output report.txt
+```
+
+To install the desktop application command as well, install the optional GUI dependency:
+
+```powershell
+py -m pip install ".[gui]"
+summarizeit-gui
+```
+
+The existing `py mini_agent.py ...` and `pyw summarize_it.pyw` launch paths remain supported for running directly from a checkout.
 
 ## Desktop app setup
 
@@ -107,3 +130,21 @@ py -m unittest discover -s tests -v
 ```
 
 If `py` is not recognized, reopen the terminal after installing Python or use `python` if that command is available on your machine.
+
+## Build distributions
+
+Install the optional packaging tools and build a wheel and source archive:
+
+```powershell
+py -m pip install ".[build]"
+py -m build
+```
+
+The generated files are placed in `dist`. To create a Windows desktop executable, install the GUI and packaging extras, then run:
+
+```powershell
+py -m pip install ".[gui,build]"
+pyinstaller --noconsole --onefile --name SummarizeIT summarize_it.pyw
+```
+
+The executable is written to `dist\SummarizeIT.exe`. Keep the PySide6 and Qt license notices with any distributed desktop build.
