@@ -82,7 +82,7 @@ repository is separate from Qt and does not change Qt's license terms.
 
 ### Desktop app
 
-Double-click `summarize_it.pyw` to open the desktop app without using a terminal. Use **Open file** to load a UTF-8 text document, or paste text into the document area. Choose the summary length, click **Summarize**, and use **Save report** to export the result.
+Double-click `summarize_it.pyw` to open the desktop app without using a terminal. Use **Open document** to load a UTF-8 text document, or paste text into the document area. Choose the summary length, click **Generate summary**, and use **Save report** to export the result.
 
 Open PowerShell in the project folder. For example, if the repository is in
 `C:\Users\YourName\SummarizeIT`:
