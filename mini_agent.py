@@ -16,7 +16,8 @@ STOP_WORDS = {
     "have", "in", "is", "it", "its", "of", "on", "or", "that", "the", "this",
     "to", "was", "were", "will", "with", "you", "your",
 }
-WORD_PATTERN = re.compile(r"[A-Za-z][A-Za-z'-]*")
+WORD_PATTERN = re.compile(r"[^\W\d_][\w'-]*", re.UNICODE)
+CLOSING_PUNCTUATION = "\"'\u2019\u201d\u00bb)]}"
 ABBREVIATIONS = {
     "approx.", "dept.", "dr.", "e.g.", "etc.", "fig.", "i.e.", "jr.",
     "mr.", "mrs.", "ms.", "no.", "prof.", "sr.", "vs.",
@@ -81,6 +82,8 @@ def split_sentences(text: str) -> list[str]:
             character in ".!?" and _is_sentence_boundary(text, index)
         ):
             following = index + 1
+            while following < len(text) and text[following] in CLOSING_PUNCTUATION:
+                following += 1
             if following < len(text) and not text[following].isspace():
                 continue
             sentence = text[start:following].strip()

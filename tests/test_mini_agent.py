@@ -62,6 +62,29 @@ class MiniAgentTests(unittest.TestCase):
         self.assertIn("¡Hola!", report)
         self.assertIn("Café déjà vu.", report)
 
+    def test_extract_analysis_uses_unicode_words_as_keywords(self):
+        text = "Café résumé café. Привет мир. Café résumé."
+
+        analysis = extract_analysis(text)
+
+        self.assertEqual(analysis.keywords[:3], ["café", "résumé", "привет"])
+
+    def test_split_sentences_handles_closing_punctuation_after_terminators(self):
+        text = 'She said, "Café works." Next step! (Ready?) Done.'
+
+        self.assertEqual(
+            split_sentences(text),
+            ['She said, "Café works."', "Next step!", "(Ready?)", "Done."],
+        )
+
+    def test_split_sentences_keeps_repeated_terminal_punctuation_together(self):
+        text = "Wait... Really?! Done."
+
+        self.assertEqual(
+            split_sentences(text),
+            ["Wait...", "Really?!", "Done."],
+        )
+
     def test_large_document_returns_requested_number_of_key_points(self):
         text = " ".join(
             f"Record {index} contains the searchable project update." for index in range(1500)

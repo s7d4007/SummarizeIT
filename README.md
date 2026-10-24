@@ -112,8 +112,11 @@ The report contains:
 
 - the first sentence as the document title;
 - the most important sentences as the summary and key points;
-- the five most frequent non-stop-word keywords;
+- the five most frequent non-stop-word keywords, including Unicode words;
 - dates found in common numeric and written formats.
+
+Sentence detection handles common abbreviations, decimal numbers, repeated terminal
+punctuation, and closing quotes or brackets after sentence-ending punctuation.
 
 If you use Command Prompt instead of PowerShell, run the same commands with `py`. Keep a command on one line, or use Command Prompt's continuation character (`^`) instead of PowerShell's backtick:
 
