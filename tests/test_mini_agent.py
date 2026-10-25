@@ -176,6 +176,16 @@ class MiniAgentTests(unittest.TestCase):
                     with self.assertRaises(SystemExit):
                         main(["document.txt", "--sentences", sentence_limit])
 
+    def test_main_reports_version(self):
+        stdout = io.StringIO()
+
+        with contextlib.redirect_stdout(stdout):
+            with self.assertRaises(SystemExit) as result:
+                main(["--version"])
+
+        self.assertEqual(result.exception.code, 0)
+        self.assertTrue(stdout.getvalue().endswith(" 0.1.0\n"))
+
     def test_main_reports_missing_input_path(self):
         stderr = io.StringIO()
 

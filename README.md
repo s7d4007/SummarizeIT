@@ -106,6 +106,12 @@ To see all available options:
 py mini_agent.py --help
 ```
 
+To check the installed CLI version:
+
+```powershell
+summarizeit --version
+```
+
 Without `--output`, the report is printed in the terminal. With `--output`, the report is written as UTF-8 text to the specified path; an existing file at that path is overwritten.
 
 The report contains:

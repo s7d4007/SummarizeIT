@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 
+VERSION = "0.1.0"
 STOP_WORDS = {
     "a", "an", "and", "are", "as", "at", "be", "by", "for", "from", "has",
     "have", "in", "is", "it", "its", "of", "on", "or", "that", "the", "this",
@@ -175,6 +176,11 @@ def build_parser() -> argparse.ArgumentParser:
             "Use quotes around paths that contain spaces."
         ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    parser.add_argument(
+        "--version",
+        action="version",
+        version=f"%(prog)s {VERSION}",
     )
     parser.add_argument("input", type=Path, help="path to a UTF-8 text file")
     parser.add_argument(
