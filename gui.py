@@ -27,7 +27,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from mini_agent import extract_analysis, format_report
+from mini_agent import PDFExtractionError, extract_analysis, format_report, read_document
 
 
 class DocumentEditor(QTextEdit):
@@ -119,7 +119,7 @@ class SummarizeWindow(QMainWindow):
         self.open_button = QPushButton("Open document")
         self.open_button.setObjectName("SecondaryButton")
         self.open_button.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_DialogOpenButton))
-        self.open_button.setToolTip("Open a UTF-8 text document")
+        self.open_button.setToolTip("Open a UTF-8 text or PDF document")
         self.open_button.clicked.connect(self.open_file)
         actions.addWidget(self.open_button)
 
@@ -160,7 +160,7 @@ class SummarizeWindow(QMainWindow):
         splitter.setChildrenCollapsible(False)
 
         input_panel, self.input_text = self._make_editor_panel(
-            "YOUR DOCUMENT", "Drop a .txt file here or start typing...", editable=True
+            "YOUR DOCUMENT", "Drop a .txt or .pdf file here or start typing...", editable=True
         )
         output_panel, self.output_text = self._make_editor_panel(
             "YOUR REPORT", "Your generated report will appear here.", editable=False
@@ -248,9 +248,12 @@ class SummarizeWindow(QMainWindow):
         if not path.is_file():
             return
         try:
-            text = path.read_text(encoding="utf-8")
+            text = read_document(path)
         except UnicodeDecodeError:
             self._show_error("Open failed", "The selected file is not valid UTF-8.")
+            return
+        except PDFExtractionError as error:
+            self._show_error("Open failed", str(error))
             return
         except OSError as error:
             self._show_error("Open failed", str(error))
@@ -267,9 +270,9 @@ class SummarizeWindow(QMainWindow):
     def open_file(self) -> None:
         path, _ = QFileDialog.getOpenFileName(
             self,
-            "Open text document",
+            "Open text or PDF document",
             "",
-            "Text files (*.txt);;All files (*)",
+            "Supported documents (*.txt *.pdf);;Text files (*.txt);;PDF files (*.pdf);;All files (*)",
         )
         if path:
             self.load_path(path)

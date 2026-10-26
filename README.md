@@ -11,7 +11,7 @@ During installation, enable **Add Python to PATH**. Open a new PowerShell window
 py --version
 ```
 
-The `py` launcher is the recommended Windows command because it selects the installed Python 3 interpreter reliably. The command-line summarizer uses only the standard library. The desktop app requires PySide6.
+The `py` launcher is the recommended Windows command because it selects the installed Python 3 interpreter reliably. The command-line summarizer uses the standard library for text files and `pypdf` for PDF files. The desktop app requires PySide6.
 
 ## Install as a command-line tool
 
@@ -50,7 +50,7 @@ Then double-click `summarize_it.pyw`, or launch it with:
 pyw summarize_it.pyw
 ```
 
-The app supports opening and saving UTF-8 text files, drag-and-drop loading,
+The app supports opening and saving UTF-8 text and PDF files, drag-and-drop loading,
 editable document input, configurable summary length, keyboard shortcuts, and
 a dark Qt interface with native file dialogs. The summarization logic remains
 in `mini_agent.py` and is shared by both the CLI and the GUI.
@@ -91,10 +91,12 @@ Open PowerShell in the project folder. For example, if the repository is in
 Set-Location "C:\Users\YourName\SummarizeIT"
 ```
 
-Use quotation marks around paths that contain spaces. The input file must be a UTF-8 text file.
+Use quotation marks around paths that contain spaces. The input file can be a UTF-8 text file or a text-based PDF. Scanned/image-only PDFs
+need OCR before they can be summarized.
 
 ```powershell
 py mini_agent.py document.txt
+py mini_agent.py document.pdf
 py mini_agent.py document.txt --sentences 5 --output report.txt
 py mini_agent.py "C:\Users\YourName\Documents\meeting notes.txt" `
   --output "C:\Users\YourName\Documents\meeting report.txt"

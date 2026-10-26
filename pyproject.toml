@@ -18,6 +18,9 @@ classifiers = [
     "Environment :: Console",
     "Environment :: X11 Applications :: Qt",
 ]
+dependencies = [
+    "pypdf>=5.0",
+]
 
 [project.scripts]
 summarizeit = "mini_agent:main"

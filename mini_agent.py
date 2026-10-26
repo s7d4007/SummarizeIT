@@ -42,6 +42,10 @@ class Analysis:
     dates: list[str]
 
 
+class PDFExtractionError(ValueError):
+    """Raised when a PDF cannot provide readable text."""
+
+
 def _validate_positive_limit(value: int, argument_name: str) -> None:
     """Reject summary limits that cannot select any sentences."""
     if isinstance(value, bool) or not isinstance(value, int):
@@ -157,10 +161,37 @@ def format_report(analysis: Analysis, summary: str) -> str:
     return "\n".join(lines)
 
 
+def read_document(input_path: Path) -> str:
+    """Read a supported text or PDF document."""
+    if input_path.suffix.lower() == ".pdf":
+        try:
+            from pypdf import PdfReader
+            from pypdf.errors import PdfReadError
+        except ImportError as error:
+            raise PDFExtractionError(
+                "PDF support requires the pypdf package; install the project dependencies."
+            ) from error
+
+        try:
+            reader = PdfReader(str(input_path))
+            if reader.is_encrypted and not reader.decrypt(""):
+                raise PDFExtractionError("The PDF is encrypted and requires a password.")
+            text = "\n".join(page.extract_text() or "" for page in reader.pages).strip()
+        except PDFExtractionError:
+            raise
+        except PdfReadError as error:
+            raise PDFExtractionError(f"could not read PDF: {error}") from error
+        if not text:
+            raise PDFExtractionError("The PDF does not contain extractable text.")
+        return text
+
+    return input_path.read_text(encoding="utf-8")
+
+
 def summarize_file(input_path: Path, max_sentences: int = 3) -> str:
-    """Read and summarize a UTF-8 text file."""
+    """Read and summarize a supported text or PDF document."""
     _validate_positive_limit(max_sentences, "max_sentences")
-    text = input_path.read_text(encoding="utf-8")
+    text = read_document(input_path)
     analysis = extract_analysis(text, max_points=max_sentences)
     summary = " ".join(analysis.key_points)
     return format_report(analysis, summary)
@@ -168,10 +199,10 @@ def summarize_file(input_path: Path, max_sentences: int = 3) -> str:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="Read a UTF-8 text file, extract key information, and produce a summary.",
+        description="Read a text or PDF file, extract key information, and produce a summary.",
         epilog=(
             "Windows examples:\n"
-            "  PowerShell: py mini_agent.py document.txt\n"
+            "  PowerShell: py mini_agent.py document.pdf\n"
             "  Command Prompt: py mini_agent.py document.txt --output report.txt\n"
             "Use quotes around paths that contain spaces."
         ),
@@ -182,7 +213,7 @@ def build_parser() -> argparse.ArgumentParser:
         action="version",
         version=f"%(prog)s {VERSION}",
     )
-    parser.add_argument("input", type=Path, help="path to a UTF-8 text file")
+    parser.add_argument("input", type=Path, help="path to a UTF-8 text or PDF file")
     parser.add_argument(
         "-o", "--output", type=Path, help="write the report to a file instead of stdout"
     )
@@ -208,6 +239,8 @@ def main(argv: list[str] | None = None) -> int:
         parser.error(f"input file not found: {args.input}")
     except UnicodeDecodeError:
         parser.error(f"input file is not valid UTF-8: {args.input}")
+    except PDFExtractionError as error:
+        parser.error(str(error))
     except OSError as error:
         parser.error(str(error))
 

@@ -2,12 +2,15 @@ import contextlib
 import io
 import tempfile
 import unittest
+from unittest import mock
 from pathlib import Path
 
 from mini_agent import (
+    PDFExtractionError,
     extract_analysis,
     format_report,
     main,
+    read_document,
     split_sentences,
     summarize_file,
 )
@@ -236,6 +239,30 @@ class MiniAgentTests(unittest.TestCase):
         self.assertIn("Title: Résumé: café is ready.", report)
         self.assertTrue(report.endswith("\n"))
 
+    def test_read_document_extracts_text_from_pdf_pages(self):
+        page = mock.Mock()
+        page.extract_text.return_value = "PDF project update."
+        reader = mock.Mock(is_encrypted=False, pages=[page])
+
+        with mock.patch("pypdf.PdfReader", return_value=reader):
+            with tempfile.TemporaryDirectory() as directory:
+                path = Path(directory) / "document.pdf"
+                path.write_bytes(b"%PDF-1.7")
+
+                self.assertEqual(read_document(path), "PDF project update.")
+
+    def test_read_document_rejects_text_free_pdf(self):
+        reader = mock.Mock(is_encrypted=False, pages=[])
+
+        with mock.patch("pypdf.PdfReader", return_value=reader):
+            with tempfile.TemporaryDirectory() as directory:
+                path = Path(directory) / "scanned.pdf"
+                path.write_bytes(b"%PDF-1.7")
+
+                with self.assertRaisesRegex(
+                    PDFExtractionError, "does not contain extractable text"
+                ):
+                    read_document(path)
 
 def summarize_file_from_text(text: str) -> str:
     with tempfile.TemporaryDirectory() as directory:
