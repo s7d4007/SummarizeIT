@@ -50,10 +50,13 @@ Then double-click `summarize_it.pyw`, or launch it with:
 pyw summarize_it.pyw
 ```
 
-The app supports opening and saving UTF-8 text and PDF files, drag-and-drop loading,
-editable document input, configurable summary length, keyboard shortcuts, and
-a dark Qt interface with native file dialogs. The summarization logic remains
-in `mini_agent.py` and is shared by both the CLI and the GUI.
+The app features:
+- **Broad file support**: Opens and saves text (`.txt`, `.md`, `.markdown`, `.rst`, `.log`) and text-based PDF documents.
+- **Drag-and-drop loading**: Drag files directly into the workspace with glowing visual feedback.
+- **Live document metrics**: Real-time word count and estimated reading time for your document, plus summary word count and reduction percentage for the report.
+- **One-click clipboard copy**: Fast **Copy report** button with temporary visual feedback and `Ctrl+Shift+C` shortcut.
+- **Dedicated workspace clear**: Fast **Clear** button and `Ctrl+Backspace` shortcut to reset input and preview panels.
+- **Dark Qt interface**: Rounded panels, glowing accent controls, and responsive split-pane layout.
 
 ## Dependencies and attribution
 
@@ -82,7 +85,7 @@ repository is separate from Qt and does not change Qt's license terms.
 
 ### Desktop app
 
-Double-click `summarize_it.pyw` to open the desktop app without using a terminal. Use **Open document** to load a UTF-8 text document, or paste text into the document area. Choose the summary length, click **Generate summary**, and use **Save report** to export the result.
+Double-click `summarize_it.pyw` to open the desktop app without using a terminal. Use **Open document** to load a document, or paste text directly into the editor. Adjust the summary length, click **Generate summary** (or `Ctrl+Enter`), and use **Copy report** (`Ctrl+Shift+C`) or **Save report** (`Ctrl+S`) to export the result.
 
 Open PowerShell in the project folder. For example, if the repository is in
 `C:\Users\YourName\SummarizeIT`:

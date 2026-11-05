@@ -19,9 +19,9 @@ from PySide6.QtWidgets import (
     QMessageBox,
     QProgressBar,
     QPushButton,
-    QStyle,
     QSpinBox,
     QSplitter,
+    QStyle,
     QTextEdit,
     QVBoxLayout,
     QWidget,
@@ -31,7 +31,7 @@ from mini_agent import PDFExtractionError, extract_analysis, format_report, read
 
 
 class DocumentEditor(QTextEdit):
-    """Text editor that accepts dropped UTF-8 files."""
+    """Text editor that accepts dropped UTF-8 files with visual feedback."""
 
     file_dropped = Signal(str)
 
@@ -41,11 +41,23 @@ class DocumentEditor(QTextEdit):
 
     def dragEnterEvent(self, event) -> None:
         if event.mimeData().hasUrls():
+            self.setProperty("dragOver", True)
+            self.style().unpolish(self)
+            self.style().polish(self)
             event.acceptProposedAction()
         else:
             event.ignore()
 
+    def dragLeaveEvent(self, event) -> None:
+        self.setProperty("dragOver", False)
+        self.style().unpolish(self)
+        self.style().polish(self)
+        super().dragLeaveEvent(event)
+
     def dropEvent(self, event) -> None:
+        self.setProperty("dragOver", False)
+        self.style().unpolish(self)
+        self.style().polish(self)
         urls = event.mimeData().urls()
         if urls:
             self.file_dropped.emit(urls[0].toLocalFile())
@@ -116,17 +128,33 @@ class SummarizeWindow(QMainWindow):
 
         actions = QHBoxLayout()
         actions.setSpacing(10)
+
         self.open_button = QPushButton("Open document")
         self.open_button.setObjectName("SecondaryButton")
         self.open_button.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_DialogOpenButton))
-        self.open_button.setToolTip("Open a UTF-8 text or PDF document")
+        self.open_button.setToolTip("Open a text or PDF document (Ctrl+O)")
         self.open_button.clicked.connect(self.open_file)
         actions.addWidget(self.open_button)
+
+        self.clear_button = QPushButton("Clear")
+        self.clear_button.setObjectName("SecondaryButton")
+        self.clear_button.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_DialogDiscardButton))
+        self.clear_button.setToolTip("Clear document and report (Ctrl+Backspace)")
+        self.clear_button.clicked.connect(self.clear_document)
+        actions.addWidget(self.clear_button)
+
+        self.copy_button = QPushButton("Copy report")
+        self.copy_button.setObjectName("SecondaryButton")
+        self.copy_button.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_FileIcon))
+        self.copy_button.setToolTip("Copy the generated report to clipboard (Ctrl+Shift+C)")
+        self.copy_button.setEnabled(False)
+        self.copy_button.clicked.connect(self.copy_report)
+        actions.addWidget(self.copy_button)
 
         self.save_button = QPushButton("Save report")
         self.save_button.setObjectName("SecondaryButton")
         self.save_button.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_DialogSaveButton))
-        self.save_button.setToolTip("Save the generated report")
+        self.save_button.setToolTip("Save the generated report to a file (Ctrl+S)")
         self.save_button.setEnabled(False)
         self.save_button.clicked.connect(self.save_report)
         actions.addWidget(self.save_button)
@@ -145,7 +173,7 @@ class SummarizeWindow(QMainWindow):
         self.summarize_button = QPushButton("Generate summary")
         self.summarize_button.setObjectName("PrimaryButton")
         self.summarize_button.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_MediaPlay))
-        self.summarize_button.setToolTip("Generate a summary from the document")
+        self.summarize_button.setToolTip("Generate a summary from the document (Ctrl+Enter)")
         self.summarize_button.clicked.connect(self.summarize)
         action_glow = QGraphicsDropShadowEffect(self.summarize_button)
         action_glow.setColor(QColor("#7657ff"))
@@ -159,13 +187,14 @@ class SummarizeWindow(QMainWindow):
         splitter.setObjectName("WorkspaceSplitter")
         splitter.setChildrenCollapsible(False)
 
-        input_panel, self.input_text = self._make_editor_panel(
-            "YOUR DOCUMENT", "Drop a .txt or .pdf file here or start typing...", editable=True
+        input_panel, self.input_text, self.input_stats_label = self._make_editor_panel(
+            "YOUR DOCUMENT", "Drop a .txt, .md, or .pdf file here or start typing...", editable=True
         )
-        output_panel, self.output_text = self._make_editor_panel(
+        output_panel, self.output_text, self.output_stats_label = self._make_editor_panel(
             "YOUR REPORT", "Your generated report will appear here.", editable=False
         )
         self.input_text.file_dropped.connect(self.load_path)
+        self.input_text.textChanged.connect(self._on_input_changed)
         splitter.addWidget(input_panel)
         splitter.addWidget(output_panel)
         splitter.setSizes([1, 1])
@@ -184,14 +213,14 @@ class SummarizeWindow(QMainWindow):
         self.status.setObjectName("StatusLabel")
         footer.addWidget(self.status)
         footer.addStretch()
-        hint = QLabel("Ctrl+O to open  ·  Ctrl+Enter to summarize  ·  Ctrl+S to save")
+        hint = QLabel("Ctrl+O open  ·  Ctrl+Enter summarize  ·  Ctrl+Shift+C copy  ·  Ctrl+S save")
         hint.setObjectName("HintLabel")
         footer.addWidget(hint)
         layout.addLayout(footer)
 
     def _make_editor_panel(
         self, label: str, placeholder: str, editable: bool
-    ) -> tuple[GlassPanel, DocumentEditor]:
+    ) -> tuple[GlassPanel, DocumentEditor, QLabel]:
         panel = GlassPanel("GlassPanel")
         panel_layout = QVBoxLayout(panel)
         panel_layout.setContentsMargins(18, 16, 18, 18)
@@ -201,9 +230,9 @@ class SummarizeWindow(QMainWindow):
         heading_label.setObjectName("PanelLabel")
         heading.addWidget(heading_label)
         heading.addStretch()
-        state = QLabel("EDITABLE" if editable else "PREVIEW")
-        state.setObjectName("PanelState")
-        heading.addWidget(state)
+        stats_label = QLabel("0 words" if editable else "PREVIEW")
+        stats_label.setObjectName("PanelState")
+        heading.addWidget(stats_label)
         panel_layout.addLayout(heading)
 
         editor = DocumentEditor()
@@ -213,13 +242,15 @@ class SummarizeWindow(QMainWindow):
         editor.setAcceptRichText(False)
         editor.setUndoRedoEnabled(editable)
         panel_layout.addWidget(editor, stretch=1)
-        return panel, editor
+        return panel, editor, stats_label
 
     def _bind_shortcuts(self) -> None:
         open_shortcut = QShortcut(QKeySequence("Ctrl+O"), self)
         open_shortcut.activated.connect(self.open_file)
         save_shortcut = QShortcut(QKeySequence("Ctrl+S"), self)
         save_shortcut.activated.connect(self.save_report)
+        copy_shortcut = QShortcut(QKeySequence("Ctrl+Shift+C"), self)
+        copy_shortcut.activated.connect(self.copy_report)
         summarize_shortcut = QShortcut(QKeySequence("Ctrl+Return"), self)
         summarize_shortcut.activated.connect(self.summarize)
 
@@ -243,6 +274,21 @@ class SummarizeWindow(QMainWindow):
         self.intro_animation.setEasingCurve(QEasingCurve.Type.OutCubic)
         self.intro_animation.start()
 
+    def _on_input_changed(self) -> None:
+        text = self.input_text.toPlainText()
+        if self.current_path and not self.file_label.text().endswith(" (edited)"):
+            self.file_label.setText(f"{self.current_path.name} (edited)")
+        self._update_input_stats(text)
+
+    def _update_input_stats(self, text: str) -> None:
+        words = len(text.split())
+        if words == 0:
+            self.input_stats_label.setText("0 words")
+            return
+        reading_time = max(1, round(words / 200))
+        time_text = f"~{reading_time} min read" if reading_time > 1 else "< 1 min read"
+        self.input_stats_label.setText(f"{words:,} words  ·  {time_text}")
+
     def load_path(self, raw_path: str) -> None:
         path = Path(raw_path)
         if not path.is_file():
@@ -259,32 +305,52 @@ class SummarizeWindow(QMainWindow):
             self._show_error("Open failed", str(error))
             return
 
-        self.input_text.setPlainText(text)
         self.current_path = path
+        self.input_text.blockSignals(True)
+        self.input_text.setPlainText(text)
+        self.input_text.blockSignals(False)
+        self._update_input_stats(text)
         self.file_label.setText(path.name)
         self.status.setText(f"Loaded {path.name}")
         self.output_text.clear()
         self.report_text = ""
+        self.output_stats_label.setText("PREVIEW")
         self.save_button.setEnabled(False)
+        self.copy_button.setEnabled(False)
 
     def open_file(self) -> None:
         path, _ = QFileDialog.getOpenFileName(
             self,
-            "Open text or PDF document",
+            "Open document",
             "",
-            "Supported documents (*.txt *.pdf);;Text files (*.txt);;PDF files (*.pdf);;All files (*)",
+            "Supported documents (*.txt *.md *.markdown *.rst *.log *.pdf);;Text documents (*.txt *.md *.markdown *.rst *.log);;PDF files (*.pdf);;All files (*)",
         )
         if path:
             self.load_path(path)
 
     def clear_document(self) -> None:
+        self.input_text.blockSignals(True)
         self.input_text.clear()
+        self.input_text.blockSignals(False)
         self.output_text.clear()
         self.current_path = None
         self.report_text = ""
         self.file_label.setText("No document loaded")
         self.save_button.setEnabled(False)
+        self.copy_button.setEnabled(False)
+        self.input_stats_label.setText("0 words")
+        self.output_stats_label.setText("PREVIEW")
         self.status.setText("Workspace cleared.")
+
+    def copy_report(self) -> None:
+        if not self.report_text:
+            return
+        clipboard = QApplication.clipboard()
+        if clipboard is not None:
+            clipboard.setText(self.report_text)
+            self.status.setText("Report copied to clipboard.")
+            self.copy_button.setText("Copied!")
+            QTimer.singleShot(1800, lambda: self.copy_button.setText("Copy report"))
 
     def summarize(self) -> None:
         text = self.input_text.toPlainText().strip()
@@ -301,11 +367,21 @@ class SummarizeWindow(QMainWindow):
             self.report_text = format_report(analysis, " ".join(analysis.key_points))
             self.output_text.setPlainText(self.report_text)
             self.save_button.setEnabled(True)
+            self.copy_button.setEnabled(True)
             self.status.setText("Summary ready.")
+            input_words = len(text.split())
+            report_words = len(" ".join(analysis.key_points).split())
+            if input_words > 0 and report_words > 0:
+                reduction = max(0, round((1.0 - (report_words / input_words)) * 100))
+                self.output_stats_label.setText(f"{report_words} summary words  ·  -{reduction}%")
+            else:
+                self.output_stats_label.setText(f"{report_words} summary words")
         except Exception as error:
             self.report_text = ""
             self.output_text.clear()
             self.save_button.setEnabled(False)
+            self.copy_button.setEnabled(False)
+            self.output_stats_label.setText("PREVIEW")
             self.status.setText("Summary failed.")
             self._show_error("Summary failed", str(error))
         finally:
@@ -314,6 +390,14 @@ class SummarizeWindow(QMainWindow):
     def _set_busy(self, busy: bool) -> None:
         self.summarize_button.setEnabled(not busy)
         self.open_button.setEnabled(not busy)
+        self.clear_button.setEnabled(not busy)
+        if busy:
+            self.save_button.setEnabled(False)
+            self.copy_button.setEnabled(False)
+        else:
+            has_report = bool(self.report_text)
+            self.save_button.setEnabled(has_report)
+            self.copy_button.setEnabled(has_report)
         self.progress.setVisible(busy)
         if busy:
             self.progress.setRange(0, 0)
@@ -334,7 +418,7 @@ class SummarizeWindow(QMainWindow):
             self,
             "Save report",
             initial_name,
-            "Text files (*.txt);;All files (*)",
+            "Text files (*.txt);;Markdown files (*.md);;All files (*)",
         )
         if not path:
             return
@@ -378,21 +462,23 @@ def stylesheet() -> str:
     QLabel#FileLabel { font-size: 12px; padding: 7px 12px; border: 1px solid #273446; border-radius: 12px; }
     QLabel#BrandMark { color: #ffffff; font-size: 22px; font-weight: 800; border-radius: 14px; background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #7657ff, stop:1 #bd5cff); }
     QLabel#PanelLabel { color: #b9c4d2; font-size: 11px; font-weight: 700; letter-spacing: 1px; }
-    QLabel#PanelState { color: #718096; font-size: 10px; font-weight: 700; }
+    QLabel#PanelState { color: #8b98a9; font-size: 11px; font-weight: 600; padding: 3px 8px; border-radius: 6px; background: #16202c; border: 1px solid #243142; }
     QFrame#GlassPanel { background: rgba(20, 30, 42, 225); border: 1px solid #263446; border-radius: 18px; }
     QSplitter::handle { background: transparent; width: 14px; }
     QTextEdit#Editor, QTextEdit#ReportEditor { background: rgba(21, 30, 40, 235); border: 1px solid #253344; border-radius: 12px; padding: 14px; color: #e6edf3; selection-background-color: #5b43c8; font-size: 14px; }
     QTextEdit#Editor:focus, QTextEdit#ReportEditor:focus { border: 1px solid #7657ff; }
+    QTextEdit#Editor[dragOver="true"] { border: 2px dashed #987fff; background: rgba(30, 44, 66, 245); }
     QTextEdit#ReportEditor { color: #c8d1dc; }
     QPushButton { min-height: 34px; padding: 0 16px; border-radius: 10px; font-weight: 600; }
     QPushButton#SecondaryButton { background: #182331; border: 1px solid #2a3a4f; color: #c8d1dc; }
-    QPushButton#SecondaryButton:hover { background: #223149; border-color: #536b8d; }
+    QPushButton#SecondaryButton:hover { background: #223149; border-color: #536b8d; color: #ffffff; }
     QPushButton#SecondaryButton:pressed { background: #121a24; }
     QPushButton#PrimaryButton { background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #7657ff, stop:1 #a451e9); border: 1px solid #987fff; color: #ffffff; padding: 0 20px; }
     QPushButton#PrimaryButton:hover { background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #896eff, stop:1 #c166f5); border-color: #b6a5ff; }
     QPushButton#PrimaryButton:pressed { background: #5f43d7; }
     QPushButton:disabled { color: #647184; background: #141b24; border-color: #202b38; }
     QSpinBox { min-height: 32px; padding: 0 8px; border: 1px solid #2a3a4f; border-radius: 9px; background: #151e28; color: #f0f6fc; }
+    QSpinBox:hover { border-color: #536b8d; }
     QSpinBox:focus { border-color: #7657ff; }
     QProgressBar#ProgressBar { border: 0; border-radius: 3px; background: #202b38; max-height: 6px; }
     QProgressBar#ProgressBar::chunk { border-radius: 3px; background: #7657ff; }
