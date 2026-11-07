@@ -27,7 +27,14 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from mini_agent import PDFExtractionError, extract_analysis, format_report, read_document
+from mini_agent import (
+    OFFLINE_FALLBACK,
+    PDFExtractionError,
+    extract_analysis,
+    format_report,
+    read_document,
+    summarize_website,
+)
 
 
 class DocumentEditor(QTextEdit):
@@ -363,6 +370,24 @@ class SummarizeWindow(QMainWindow):
 
     def _finish_summary(self, text: str) -> None:
         try:
+            if text.startswith(("http://", "https://")):
+                self.report_text = summarize_website(
+                    text, max_sentences=self.sentence_limit.value()
+                )
+                self.output_text.setPlainText(self.report_text)
+                self.save_button.setEnabled(True)
+                self.copy_button.setEnabled(True)
+                self.output_stats_label.setText(
+                    "Connection unavailable"
+                    if self.report_text == OFFLINE_FALLBACK
+                    else "Website summary"
+                )
+                self.status.setText(
+                    "Internet connection unavailable."
+                    if self.report_text == OFFLINE_FALLBACK
+                    else "Website summary ready."
+                )
+                return
             analysis = extract_analysis(text, max_points=self.sentence_limit.value())
             self.report_text = format_report(analysis, " ".join(analysis.key_points))
             self.output_text.setPlainText(self.report_text)

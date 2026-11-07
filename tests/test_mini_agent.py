@@ -2,10 +2,12 @@ import contextlib
 import io
 import tempfile
 import unittest
+from urllib.error import URLError
 from unittest import mock
 from pathlib import Path
 
 from mini_agent import (
+    OFFLINE_FALLBACK,
     PDFExtractionError,
     extract_analysis,
     format_report,
@@ -13,6 +15,7 @@ from mini_agent import (
     read_document,
     split_sentences,
     summarize_file,
+    summarize_website,
 )
 
 
@@ -263,6 +266,35 @@ class MiniAgentTests(unittest.TestCase):
                     PDFExtractionError, "does not contain extractable text"
                 ):
                     read_document(path)
+
+    def test_summarize_website_extracts_readable_html(self):
+        response = mock.Mock()
+        response.headers.get_content_charset.return_value = "utf-8"
+        response.read.return_value = (
+            b"<html><head><title>Ignored</title><script>noise</script></head>"
+            b"<body><h1>Website update</h1><p>The project ships a useful report.</p>"
+            b"<p>The report helps readers find important details.</p></body></html>"
+        )
+        response.__enter__ = mock.Mock(return_value=response)
+        response.__exit__ = mock.Mock(return_value=False)
+
+        with mock.patch("mini_agent.urlopen", return_value=response) as open_url:
+            report = summarize_website("https://example.com", max_sentences=2)
+
+        open_url.assert_called_once()
+        self.assertIn("Title: Website update", report)
+        self.assertNotIn("noise", report)
+
+    def test_summarize_website_returns_offline_fallback(self):
+        with mock.patch("mini_agent.urlopen", side_effect=URLError("offline")):
+            self.assertEqual(
+                summarize_website("https://example.com"),
+                OFFLINE_FALLBACK,
+            )
+
+    def test_fetch_website_rejects_invalid_url(self):
+        with self.assertRaisesRegex(ValueError, "must start with http"):
+            summarize_website("example.com")
 
 def summarize_file_from_text(text: str) -> str:
     with tempfile.TemporaryDirectory() as directory:

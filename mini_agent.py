@@ -3,15 +3,20 @@
 from __future__ import annotations
 
 import argparse
+import html
 import math
 import re
 import sys
 from collections import Counter
 from dataclasses import dataclass
 from pathlib import Path
+from urllib.error import HTTPError, URLError
+from urllib.parse import urlparse
+from urllib.request import Request, urlopen
 
 
 VERSION = "0.1.0"
+OFFLINE_FALLBACK = "Please check your Internet Connection"
 STOP_WORDS = {
     "a", "an", "and", "are", "as", "at", "be", "by", "for", "from", "has",
     "have", "in", "is", "it", "its", "of", "on", "or", "that", "the", "this",
@@ -44,6 +49,71 @@ class Analysis:
 
 class PDFExtractionError(ValueError):
     """Raised when a PDF cannot provide readable text."""
+
+
+class WebsiteExtractionError(ValueError):
+    """Raised when a website does not contain readable text."""
+
+
+class _HTMLTextParser:
+    """Extract readable text while ignoring non-content HTML elements."""
+
+    def __init__(self) -> None:
+        from html.parser import HTMLParser
+
+        class Parser(HTMLParser):
+            def __init__(self, owner: "_HTMLTextParser") -> None:
+                super().__init__(convert_charrefs=True)
+                self.owner = owner
+                self.ignored_depth = 0
+
+            def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+                if tag in {"head", "script", "style", "noscript", "template", "svg"}:
+                    self.ignored_depth += 1
+                elif not self.ignored_depth and tag in {"br", "p", "div", "li", "h1", "h2", "h3", "article", "section"}:
+                    self.owner.parts.append("\n")
+
+            def handle_endtag(self, tag: str) -> None:
+                if tag in {"head", "script", "style", "noscript", "template", "svg"} and self.ignored_depth:
+                    self.ignored_depth -= 1
+                elif not self.ignored_depth and tag in {"p", "div", "li", "h1", "h2", "h3", "article", "section"}:
+                    self.owner.parts.append("\n")
+
+            def handle_data(self, data: str) -> None:
+                if not self.ignored_depth:
+                    self.owner.parts.append(data)
+
+        self.parts: list[str] = []
+        self.parser = Parser(self)
+
+    def feed(self, content: str) -> str:
+        self.parser.feed(content)
+        text = html.unescape("".join(self.parts))
+        return re.sub(r"\s+", " ", text).strip()
+
+
+def _is_website(source: str) -> bool:
+    parsed = urlparse(source)
+    return parsed.scheme in {"http", "https"} and bool(parsed.netloc)
+
+
+def fetch_website(url: str, timeout: float = 15.0) -> str:
+    """Fetch and extract readable text from an HTTP(S) website."""
+    if not _is_website(url):
+        raise ValueError("website URL must start with http:// or https://")
+
+    request = Request(url, headers={"User-Agent": "SummarizeIT/0.1"})
+    try:
+        with urlopen(request, timeout=timeout) as response:
+            content_type = response.headers.get_content_charset() or "utf-8"
+            content = response.read().decode(content_type, errors="replace")
+    except (HTTPError, URLError, TimeoutError, OSError) as error:
+        raise WebsiteExtractionError(OFFLINE_FALLBACK) from error
+
+    text = _HTMLTextParser().feed(content)
+    if not text:
+        raise WebsiteExtractionError("The website does not contain readable text.")
+    return text
 
 
 def _validate_positive_limit(value: int, argument_name: str) -> None:
@@ -197,9 +267,30 @@ def summarize_file(input_path: Path, max_sentences: int = 3) -> str:
     return format_report(analysis, summary)
 
 
+def summarize_website(url: str, max_sentences: int = 3) -> str:
+    """Fetch and summarize a website, returning the offline fallback when unavailable."""
+    _validate_positive_limit(max_sentences, "max_sentences")
+    try:
+        text = fetch_website(url)
+    except WebsiteExtractionError as error:
+        if str(error) == OFFLINE_FALLBACK:
+            return OFFLINE_FALLBACK
+        raise
+    analysis = extract_analysis(text, max_points=max_sentences)
+    return format_report(analysis, " ".join(analysis.key_points))
+
+
+def summarize_source(source: str | Path, max_sentences: int = 3) -> str:
+    """Summarize either a local document path or an HTTP(S) website."""
+    source_text = str(source)
+    if _is_website(source_text):
+        return summarize_website(source_text, max_sentences=max_sentences)
+    return summarize_file(Path(source_text), max_sentences=max_sentences)
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="Read a text or PDF file, extract key information, and produce a summary.",
+        description="Summarize a text/PDF file or an HTTP(S) website.",
         epilog=(
             "Windows examples:\n"
             "  PowerShell: py mini_agent.py document.pdf\n"
@@ -213,7 +304,7 @@ def build_parser() -> argparse.ArgumentParser:
         action="version",
         version=f"%(prog)s {VERSION}",
     )
-    parser.add_argument("input", type=Path, help="path to a UTF-8 text or PDF file")
+    parser.add_argument("input", help="path to a UTF-8 text/PDF file or an HTTP(S) website")
     parser.add_argument(
         "-o", "--output", type=Path, help="write the report to a file instead of stdout"
     )
@@ -234,12 +325,14 @@ def main(argv: list[str] | None = None) -> int:
         parser.error("--sentences must be at least 1")
 
     try:
-        report = summarize_file(args.input, max_sentences=args.sentences)
+        report = summarize_source(args.input, max_sentences=args.sentences)
     except FileNotFoundError:
         parser.error(f"input file not found: {args.input}")
     except UnicodeDecodeError:
         parser.error(f"input file is not valid UTF-8: {args.input}")
     except PDFExtractionError as error:
+        parser.error(str(error))
+    except WebsiteExtractionError as error:
         parser.error(str(error))
     except OSError as error:
         parser.error(str(error))

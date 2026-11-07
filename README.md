@@ -1,6 +1,6 @@
 # SummarizeIT
 
-`mini_agent.py` is a small Python agent that reads a UTF-8 text file, extracts key information, and creates an extractive summary. It uses sentence scoring based on the most frequent meaningful words, so it works offline and does not require an API key. `gui.py` provides the optional PySide6 desktop application.
+`mini_agent.py` is a small Python agent that reads a UTF-8 text file or website, extracts key information, and creates an extractive summary. Website summaries require an internet connection; when a website cannot be reached, the app returns `Please check your Internet Connection`. Local documents continue to work offline. `gui.py` provides the optional PySide6 desktop application.
 
 ## Windows setup and usage
 
@@ -85,7 +85,7 @@ repository is separate from Qt and does not change Qt's license terms.
 
 ### Desktop app
 
-Double-click `summarize_it.pyw` to open the desktop app without using a terminal. Use **Open document** to load a document, or paste text directly into the editor. Adjust the summary length, click **Generate summary** (or `Ctrl+Enter`), and use **Copy report** (`Ctrl+Shift+C`) or **Save report** (`Ctrl+S`) to export the result.
+Double-click `summarize_it.pyw` to open the desktop app without using a terminal. Use **Open document** to load a document, or paste text directly into the editor. To summarize a website, paste its `http://` or `https://` URL into the editor. An internet connection is required; offline website requests return `Please check your Internet Connection`. Adjust the summary length, click **Generate summary** (or `Ctrl+Enter`), and use **Copy report** (`Ctrl+Shift+C`) or **Save report** (`Ctrl+S`) to export the result.
 
 Open PowerShell in the project folder. For example, if the repository is in
 `C:\Users\YourName\SummarizeIT`:
@@ -100,6 +100,7 @@ need OCR before they can be summarized.
 ```powershell
 py mini_agent.py document.txt
 py mini_agent.py document.pdf
+py mini_agent.py https://example.com
 py mini_agent.py document.txt --sentences 5 --output report.txt
 py mini_agent.py "C:\Users\YourName\Documents\meeting notes.txt" `
   --output "C:\Users\YourName\Documents\meeting report.txt"
