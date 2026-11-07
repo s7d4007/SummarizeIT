@@ -9,6 +9,7 @@ from PySide6.QtCore import QEasingCurve, QPropertyAnimation, Qt, QTimer, Signal
 from PySide6.QtGui import QAction, QColor, QKeySequence, QPalette, QShortcut
 from PySide6.QtWidgets import (
     QApplication,
+    QAbstractSpinBox,
     QFileDialog,
     QFrame,
     QGraphicsDropShadowEffect,
@@ -138,21 +139,18 @@ class SummarizeWindow(QMainWindow):
 
         self.open_button = QPushButton("Open document")
         self.open_button.setObjectName("SecondaryButton")
-        self.open_button.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_DialogOpenButton))
         self.open_button.setToolTip("Open a text or PDF document (Ctrl+O)")
         self.open_button.clicked.connect(self.open_file)
         actions.addWidget(self.open_button)
 
         self.clear_button = QPushButton("Clear")
         self.clear_button.setObjectName("SecondaryButton")
-        self.clear_button.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_DialogDiscardButton))
         self.clear_button.setToolTip("Clear document and report (Ctrl+Backspace)")
         self.clear_button.clicked.connect(self.clear_document)
         actions.addWidget(self.clear_button)
 
         self.copy_button = QPushButton("Copy report")
         self.copy_button.setObjectName("SecondaryButton")
-        self.copy_button.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_FileIcon))
         self.copy_button.setToolTip("Copy the generated report to clipboard (Ctrl+Shift+C)")
         self.copy_button.setEnabled(False)
         self.copy_button.clicked.connect(self.copy_report)
@@ -160,7 +158,6 @@ class SummarizeWindow(QMainWindow):
 
         self.save_button = QPushButton("Save report")
         self.save_button.setObjectName("SecondaryButton")
-        self.save_button.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_DialogSaveButton))
         self.save_button.setToolTip("Save the generated report to a file (Ctrl+S)")
         self.save_button.setEnabled(False)
         self.save_button.clicked.connect(self.save_report)
@@ -174,12 +171,14 @@ class SummarizeWindow(QMainWindow):
         self.sentence_limit.setRange(1, 20)
         self.sentence_limit.setValue(3)
         self.sentence_limit.setSuffix(" sentences")
+        self.sentence_limit.setButtonSymbols(QAbstractSpinBox.ButtonSymbols.NoButtons)
+        self.sentence_limit.setMinimumWidth(136)
+        self.sentence_limit.setReadOnly(False)
         self.sentence_limit.setToolTip("Maximum number of sentences in the summary")
         actions.addWidget(self.sentence_limit)
 
-        self.summarize_button = QPushButton("Generate summary")
+        self.summarize_button = QPushButton("Summarize")
         self.summarize_button.setObjectName("PrimaryButton")
-        self.summarize_button.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_MediaPlay))
         self.summarize_button.setToolTip("Generate a summary from the document (Ctrl+Enter)")
         self.summarize_button.clicked.connect(self.summarize)
         action_glow = QGraphicsDropShadowEffect(self.summarize_button)
@@ -195,7 +194,9 @@ class SummarizeWindow(QMainWindow):
         splitter.setChildrenCollapsible(False)
 
         input_panel, self.input_text, self.input_stats_label = self._make_editor_panel(
-            "YOUR DOCUMENT", "Drop a .txt, .md, or .pdf file here or start typing...", editable=True
+            "YOUR DOCUMENT",
+            "Drop a .txt, .md, or .pdf file, website url here or start typing...",
+            editable=True,
         )
         output_panel, self.output_text, self.output_stats_label = self._make_editor_panel(
             "YOUR REPORT", "Your generated report will appear here.", editable=False
@@ -283,6 +284,9 @@ class SummarizeWindow(QMainWindow):
 
     def _on_input_changed(self) -> None:
         text = self.input_text.toPlainText()
+        self.centralWidget().setProperty("urlMode", text.strip().startswith(("http://", "https://")))
+        self.centralWidget().style().unpolish(self.centralWidget())
+        self.centralWidget().style().polish(self.centralWidget())
         if self.current_path and not self.file_label.text().endswith(" (edited)"):
             self.file_label.setText(f"{self.current_path.name} (edited)")
         self._update_input_stats(text)
@@ -478,7 +482,7 @@ def dark_palette() -> QPalette:
 
 def stylesheet() -> str:
     return """
-    * { font-family: "Segoe UI", "Inter", sans-serif; color: #f0f6fc; }
+    * { font-family: "Cambria Math", "Cambria", serif; color: #f0f6fc; }
     QMainWindow, #Root { background: #0d1117; }
     QLabel#AppTitle { font-size: 24px; font-weight: 700; color: #f0f6fc; }
     QLabel#AppSubtitle, QLabel#FileLabel, QLabel#HintLabel,
@@ -494,19 +498,24 @@ def stylesheet() -> str:
     QTextEdit#Editor:focus, QTextEdit#ReportEditor:focus { border: 1px solid #7657ff; }
     QTextEdit#Editor[dragOver="true"] { border: 2px dashed #987fff; background: rgba(30, 44, 66, 245); }
     QTextEdit#ReportEditor { color: #c8d1dc; }
-    QPushButton { min-height: 34px; padding: 0 16px; border-radius: 10px; font-weight: 600; }
-    QPushButton#SecondaryButton { background: #182331; border: 1px solid #2a3a4f; color: #c8d1dc; }
-    QPushButton#SecondaryButton:hover { background: #223149; border-color: #536b8d; color: #ffffff; }
+    QPushButton { min-height: 34px; padding: 0 16px; border-radius: 10px; font-weight: 600; border: 1px solid #718096; }
+    QPushButton#SecondaryButton { background: #182331; border: 1px solid #718096; color: #f0f6fc; }
+    QPushButton#SecondaryButton:hover { background: #2b3645; border-color: #cbd5e1; color: #ffffff; }
     QPushButton#SecondaryButton:pressed { background: #121a24; }
-    QPushButton#PrimaryButton { background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #7657ff, stop:1 #a451e9); border: 1px solid #987fff; color: #ffffff; padding: 0 20px; }
-    QPushButton#PrimaryButton:hover { background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #896eff, stop:1 #c166f5); border-color: #b6a5ff; }
-    QPushButton#PrimaryButton:pressed { background: #5f43d7; }
+    QPushButton#PrimaryButton { background: #161b22; border: 1px solid #cbd5e1; color: #ffffff; padding: 0 20px; }
+    QPushButton#PrimaryButton:hover { background: #3a4554; border-color: #ffffff; color: #ffffff; }
+    QPushButton#PrimaryButton:pressed { background: #0d1117; }
     QPushButton:disabled { color: #647184; background: #141b24; border-color: #202b38; }
-    QSpinBox { min-height: 32px; padding: 0 8px; border: 1px solid #2a3a4f; border-radius: 9px; background: #151e28; color: #f0f6fc; }
+    QSpinBox { min-height: 32px; padding: 0 14px; border: 1px solid #2a3a4f; border-radius: 9px; background: #151e28; color: #f0f6fc; }
     QSpinBox:hover { border-color: #536b8d; }
     QSpinBox:focus { border-color: #7657ff; }
     QProgressBar#ProgressBar { border: 0; border-radius: 3px; background: #202b38; max-height: 6px; }
     QProgressBar#ProgressBar::chunk { border-radius: 3px; background: #7657ff; }
+    #Root[urlMode="true"] { background: #050608; }
+    #Root[urlMode="true"] QFrame#GlassPanel { background: #11151b; border-color: #8994a3; }
+    #Root[urlMode="true"] QTextEdit#Editor, #Root[urlMode="true"] QTextEdit#ReportEditor { background: #080a0d; border-color: #8994a3; }
+    #Root[urlMode="true"] QPushButton { background: #11151b; border-color: #cbd5e1; }
+    #Root[urlMode="true"] QPushButton:hover { background: #3a4554; color: #ffffff; }
     """
 
 

@@ -85,7 +85,7 @@ repository is separate from Qt and does not change Qt's license terms.
 
 ### Desktop app
 
-Double-click `summarize_it.pyw` to open the desktop app without using a terminal. Use **Open document** to load a document, or paste text directly into the editor. To summarize a website, paste its `http://` or `https://` URL into the editor. An internet connection is required; offline website requests return `Please check your Internet Connection`. Adjust the summary length, click **Generate summary** (or `Ctrl+Enter`), and use **Copy report** (`Ctrl+Shift+C`) or **Save report** (`Ctrl+S`) to export the result.
+Double-click `summarize_it.pyw` to open the desktop app without using a terminal. Use **Open document** to load a document, or paste text directly into the editor. To summarize a website, paste its `http://` or `https://` URL into the editor. An internet connection is required; offline website requests return `Please check your Internet Connection`. Adjust the summary length, click **Summarize** (or `Ctrl+Enter`), and use **Copy report** (`Ctrl+Shift+C`) or **Save report** (`Ctrl+S`) to export the result.
 
 Open PowerShell in the project folder. For example, if the repository is in
 `C:\Users\YourName\SummarizeIT`:

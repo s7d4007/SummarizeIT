@@ -20,7 +20,9 @@ OFFLINE_FALLBACK = "Please check your Internet Connection"
 STOP_WORDS = {
     "a", "an", "and", "are", "as", "at", "be", "by", "for", "from", "has",
     "have", "in", "is", "it", "its", "of", "on", "or", "that", "the", "this",
-    "to", "was", "were", "will", "with", "you", "your",
+    "to", "was", "were", "will", "with", "you", "your", "about", "also",
+    "can", "could", "how", "may", "more", "such", "than", "then", "these",
+    "those", "when", "where", "which", "while", "who", "would",
 }
 WORD_PATTERN = re.compile(r"[^\W\d_][\w'-]*", re.UNICODE)
 CLOSING_PUNCTUATION = "\"'\u2019\u201d\u00bb)]}"
@@ -66,30 +68,53 @@ class _HTMLTextParser:
                 super().__init__(convert_charrefs=True)
                 self.owner = owner
                 self.ignored_depth = 0
+                self.block_depth = 0
+                self.block_parts: list[str] = []
+                self.block_tag = ""
 
             def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
-                if tag in {"head", "script", "style", "noscript", "template", "svg"}:
+                structural_name = next(
+                    (value or "" for name, value in attrs if name in {"id", "class"}),
+                    "",
+                ).lower()
+                ignored_names = (
+                    "nav", "menu", "sidebar", "footer", "header", "toolbar",
+                    "reference", "citation", "infobox", "toc", "metadata",
+                )
+                if (
+                    tag in {"head", "script", "style", "noscript", "template", "svg", "table", "sup"}
+                    or any(name in structural_name for name in ignored_names)
+                ):
                     self.ignored_depth += 1
-                elif not self.ignored_depth and tag in {"br", "p", "div", "li", "h1", "h2", "h3", "article", "section"}:
-                    self.owner.parts.append("\n")
+                elif not self.ignored_depth and tag in {"p", "h1", "h2", "h3"}:
+                    self.block_depth += 1
+                    if self.block_depth == 1:
+                        self.block_parts = []
+                        self.block_tag = tag
 
             def handle_endtag(self, tag: str) -> None:
-                if tag in {"head", "script", "style", "noscript", "template", "svg"} and self.ignored_depth:
+                if tag in {"head", "script", "style", "noscript", "template", "svg", "table", "sup"} and self.ignored_depth:
                     self.ignored_depth -= 1
-                elif not self.ignored_depth and tag in {"p", "div", "li", "h1", "h2", "h3", "article", "section"}:
-                    self.owner.parts.append("\n")
+                elif not self.ignored_depth and tag in {"p", "h1", "h2", "h3"} and self.block_depth:
+                    self.block_depth -= 1
+                    if self.block_depth == 0:
+                        block = re.sub(r"\s+", " ", "".join(self.block_parts)).strip()
+                        if len(block.split()) >= (1 if self.block_tag in {"h1", "h2", "h3"} else 3):
+                            self.owner.parts.append(block)
+                        self.block_parts = []
+                        self.block_tag = ""
 
             def handle_data(self, data: str) -> None:
                 if not self.ignored_depth:
-                    self.owner.parts.append(data)
+                    if self.block_depth:
+                        self.block_parts.append(data)
 
         self.parts: list[str] = []
         self.parser = Parser(self)
 
     def feed(self, content: str) -> str:
         self.parser.feed(content)
-        text = html.unescape("".join(self.parts))
-        return re.sub(r"\s+", " ", text).strip()
+        return html.unescape("\n".join(self.parts)).strip()
 
 
 def _is_website(source: str) -> bool:
@@ -203,13 +228,35 @@ def extract_analysis(text: str, max_points: int = 3) -> Analysis:
             doc_count = sentence_frequencies[word]
             idf = math.log((n + 1) / (doc_count + 1)) + 1.0
             score += tf * idf
-        scored_sentences.append((score, -index, sentence))
+        meaningful_count = len(word_set)
+        if meaningful_count:
+            # Prefer focused sentences over long sentences padded with generic words.
+            score = score / math.sqrt(meaningful_count)
+            # Earlier sentences usually establish context, but content remains dominant.
+            score += 0.15 * (n - index) / max(n, 1)
+        scored_sentences.append((score, -index, sentence, word_set))
 
-    ranked = sorted(
-        (item for item in scored_sentences if item[0] > 0),
-        reverse=True,
-    )[:max_points]
-    key_points = [sentence for _, _, sentence in sorted(ranked, key=lambda item: -item[1])]
+    candidates = [item for item in scored_sentences if item[0] > 0]
+    selected: list[tuple[float, int, str, set[str]]] = []
+    while candidates and len(selected) < max_points:
+        best = max(
+            candidates,
+            key=lambda item: item[0]
+            - max(
+                (
+                    len(item[3] & chosen[3]) / max(len(item[3] | chosen[3]), 1)
+                    for chosen in selected
+                ),
+                default=0.0,
+            ),
+        )
+        selected.append(best)
+        candidates.remove(best)
+
+    key_points = [
+        sentence
+        for _, _, sentence, _ in sorted(selected, key=lambda item: -item[1])
+    ]
     dates = list(dict.fromkeys(DATE_PATTERN.findall(text)))
 
     return Analysis(title=title, key_points=key_points, keywords=keywords, dates=dates)
