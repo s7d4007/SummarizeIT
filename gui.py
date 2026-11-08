@@ -143,6 +143,12 @@ class SummarizeWindow(QMainWindow):
         self.open_button.clicked.connect(self.open_file)
         actions.addWidget(self.open_button)
 
+        self.paste_button = QPushButton("Paste text")
+        self.paste_button.setObjectName("SecondaryButton")
+        self.paste_button.setToolTip("Paste text from the clipboard (Ctrl+Shift+V)")
+        self.paste_button.clicked.connect(self.paste_text)
+        actions.addWidget(self.paste_button)
+
         self.clear_button = QPushButton("Clear")
         self.clear_button.setObjectName("SecondaryButton")
         self.clear_button.setToolTip("Clear document and report (Ctrl+Backspace)")
@@ -221,7 +227,10 @@ class SummarizeWindow(QMainWindow):
         self.status.setObjectName("StatusLabel")
         footer.addWidget(self.status)
         footer.addStretch()
-        hint = QLabel("Ctrl+O open  ·  Ctrl+Enter summarize  ·  Ctrl+Shift+C copy  ·  Ctrl+S save")
+        hint = QLabel(
+            "Ctrl+O open  ·  Ctrl+Shift+V paste  ·  Ctrl+Enter summarize  ·  "
+            "Ctrl+Shift+C copy  ·  Ctrl+S save"
+        )
         hint.setObjectName("HintLabel")
         footer.addWidget(hint)
         layout.addLayout(footer)
@@ -259,6 +268,8 @@ class SummarizeWindow(QMainWindow):
         save_shortcut.activated.connect(self.save_report)
         copy_shortcut = QShortcut(QKeySequence("Ctrl+Shift+C"), self)
         copy_shortcut.activated.connect(self.copy_report)
+        paste_shortcut = QShortcut(QKeySequence("Ctrl+Shift+V"), self)
+        paste_shortcut.activated.connect(self.paste_text)
         summarize_shortcut = QShortcut(QKeySequence("Ctrl+Return"), self)
         summarize_shortcut.activated.connect(self.summarize)
 
@@ -353,6 +364,24 @@ class SummarizeWindow(QMainWindow):
         self.output_stats_label.setText("PREVIEW")
         self.status.setText("Workspace cleared.")
 
+    def paste_text(self) -> None:
+        clipboard = QApplication.clipboard()
+        if clipboard is None:
+            return
+        text = clipboard.text()
+        if not text.strip():
+            self.status.setText("Clipboard does not contain text.")
+            return
+        self.input_text.setPlainText(text)
+        self.current_path = None
+        self.file_label.setText("Pasted text")
+        self.output_text.clear()
+        self.report_text = ""
+        self.output_stats_label.setText("PREVIEW")
+        self.save_button.setEnabled(False)
+        self.copy_button.setEnabled(False)
+        self.status.setText("Pasted text from clipboard.")
+
     def copy_report(self) -> None:
         if not self.report_text:
             return
@@ -419,6 +448,7 @@ class SummarizeWindow(QMainWindow):
     def _set_busy(self, busy: bool) -> None:
         self.summarize_button.setEnabled(not busy)
         self.open_button.setEnabled(not busy)
+        self.paste_button.setEnabled(not busy)
         self.clear_button.setEnabled(not busy)
         if busy:
             self.save_button.setEnabled(False)
@@ -503,7 +533,7 @@ def stylesheet() -> str:
     QPushButton#SecondaryButton:hover { background: #2b3645; border-color: #cbd5e1; color: #ffffff; }
     QPushButton#SecondaryButton:pressed { background: #121a24; }
     QPushButton#PrimaryButton { background: #161b22; border: 1px solid #cbd5e1; color: #ffffff; padding: 0 20px; }
-    QPushButton#PrimaryButton:hover { background: #3a4554; border-color: #ffffff; color: #ffffff; }
+    QPushButton#PrimaryButton:hover { background: #7657ff; border-color: #b7aaff; color: #ffffff; }
     QPushButton#PrimaryButton:pressed { background: #0d1117; }
     QPushButton:disabled { color: #647184; background: #141b24; border-color: #202b38; }
     QSpinBox { min-height: 32px; padding: 0 14px; border: 1px solid #2a3a4f; border-radius: 9px; background: #151e28; color: #f0f6fc; }
@@ -515,7 +545,7 @@ def stylesheet() -> str:
     #Root[urlMode="true"] QFrame#GlassPanel { background: #11151b; border-color: #8994a3; }
     #Root[urlMode="true"] QTextEdit#Editor, #Root[urlMode="true"] QTextEdit#ReportEditor { background: #080a0d; border-color: #8994a3; }
     #Root[urlMode="true"] QPushButton { background: #11151b; border-color: #cbd5e1; }
-    #Root[urlMode="true"] QPushButton:hover { background: #3a4554; color: #ffffff; }
+    #Root[urlMode="true"] QPushButton#PrimaryButton:hover { background: #7657ff; border-color: #b7aaff; color: #ffffff; }
     """
 
 
