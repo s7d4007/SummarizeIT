@@ -295,9 +295,12 @@ class SummarizeWindow(QMainWindow):
 
     def _on_input_changed(self) -> None:
         text = self.input_text.toPlainText()
-        self.centralWidget().setProperty("urlMode", text.strip().startswith(("http://", "https://")))
-        self.centralWidget().style().unpolish(self.centralWidget())
-        self.centralWidget().style().polish(self.centralWidget())
+        central_widget = self.centralWidget()
+        if central_widget is not None:
+            central_widget.setProperty("urlMode", text.strip().startswith(("http://", "https://")))
+            widget_style = central_widget.style()
+            widget_style.unpolish(central_widget)
+            widget_style.polish(central_widget)
         if self.current_path and not self.file_label.text().endswith(" (edited)"):
             self.file_label.setText(f"{self.current_path.name} (edited)")
         self._update_input_stats(text)
