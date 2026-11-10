@@ -31,6 +31,7 @@ from PySide6.QtWidgets import (
 from mini_agent import (
     OFFLINE_FALLBACK,
     PDFExtractionError,
+    WordExtractionError,
     extract_analysis,
     format_report,
     read_document,
@@ -182,17 +183,6 @@ class SummarizeWindow(QMainWindow):
         self.sentence_limit.setReadOnly(False)
         self.sentence_limit.setToolTip("Maximum number of sentences in the summary")
         actions.addWidget(self.sentence_limit)
-
-        self.summarize_button = QPushButton("Summarize")
-        self.summarize_button.setObjectName("PrimaryButton")
-        self.summarize_button.setToolTip("Generate a summary from the document (Ctrl+Enter)")
-        self.summarize_button.clicked.connect(self.summarize)
-        action_glow = QGraphicsDropShadowEffect(self.summarize_button)
-        action_glow.setColor(QColor("#7657ff"))
-        action_glow.setBlurRadius(18)
-        action_glow.setOffset(0, 3)
-        self.summarize_button.setGraphicsEffect(action_glow)
-        actions.addWidget(self.summarize_button)
         layout.addLayout(actions)
 
         splitter = QSplitter(Qt.Orientation.Horizontal)
@@ -201,7 +191,7 @@ class SummarizeWindow(QMainWindow):
 
         input_panel, self.input_text, self.input_stats_label = self._make_editor_panel(
             "YOUR DOCUMENT",
-            "Drop a .txt, .md, or .pdf file, website url here or start typing...",
+            "Drop a .txt, .md, .pdf, or .docx file, website url here or start typing...",
             editable=True,
         )
         output_panel, self.output_text, self.output_stats_label = self._make_editor_panel(
@@ -326,6 +316,9 @@ class SummarizeWindow(QMainWindow):
         except PDFExtractionError as error:
             self._show_error("Open failed", str(error))
             return
+        except WordExtractionError as error:
+            self._show_error("Open failed", str(error))
+            return
         except OSError as error:
             self._show_error("Open failed", str(error))
             return
@@ -342,13 +335,14 @@ class SummarizeWindow(QMainWindow):
         self.output_stats_label.setText("PREVIEW")
         self.save_button.setEnabled(False)
         self.copy_button.setEnabled(False)
+        QTimer.singleShot(0, self.summarize)
 
     def open_file(self) -> None:
         path, _ = QFileDialog.getOpenFileName(
             self,
             "Open document",
             "",
-            "Supported documents (*.txt *.md *.markdown *.rst *.log *.pdf);;Text documents (*.txt *.md *.markdown *.rst *.log);;PDF files (*.pdf);;All files (*)",
+            "Supported documents (*.txt *.md *.markdown *.rst *.log *.pdf *.docx);;Text documents (*.txt *.md *.markdown *.rst *.log);;PDF files (*.pdf);;Word documents (*.docx);;All files (*)",
         )
         if path:
             self.load_path(path)
@@ -449,7 +443,6 @@ class SummarizeWindow(QMainWindow):
             self._set_busy(False)
 
     def _set_busy(self, busy: bool) -> None:
-        self.summarize_button.setEnabled(not busy)
         self.open_button.setEnabled(not busy)
         self.paste_button.setEnabled(not busy)
         self.clear_button.setEnabled(not busy)

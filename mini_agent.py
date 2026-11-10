@@ -53,6 +53,10 @@ class PDFExtractionError(ValueError):
     """Raised when a PDF cannot provide readable text."""
 
 
+class WordExtractionError(ValueError):
+    """Raised when a Word document cannot provide readable text."""
+
+
 class WebsiteExtractionError(ValueError):
     """Raised when a website does not contain readable text."""
 
@@ -279,7 +283,31 @@ def format_report(analysis: Analysis, summary: str) -> str:
 
 
 def read_document(input_path: Path) -> str:
-    """Read a supported text or PDF document."""
+    """Read a supported text, PDF, or DOCX document."""
+    if input_path.suffix.lower() == ".doc":
+        raise WordExtractionError("only .docx Word files are supported")
+
+    if input_path.suffix.lower() == ".docx":
+        try:
+            from docx import Document
+        except ImportError as error:
+            raise WordExtractionError(
+                "Word support requires the python-docx package; install the project dependencies."
+            ) from error
+
+        try:
+            document = Document(str(input_path))
+            text = "\n".join(
+                paragraph.text
+                for paragraph in document.paragraphs
+                if paragraph.text.strip()
+            ).strip()
+        except Exception as error:
+            raise WordExtractionError(f"could not read Word document: {error}") from error
+        if not text:
+            raise WordExtractionError("The Word document does not contain readable text.")
+        return text
+
     if input_path.suffix.lower() == ".pdf":
         try:
             from pypdf import PdfReader
@@ -306,7 +334,7 @@ def read_document(input_path: Path) -> str:
 
 
 def summarize_file(input_path: Path, max_sentences: int = 3) -> str:
-    """Read and summarize a supported text or PDF document."""
+    """Read and summarize a supported text, PDF, or DOCX document."""
     _validate_positive_limit(max_sentences, "max_sentences")
     text = read_document(input_path)
     analysis = extract_analysis(text, max_points=max_sentences)
@@ -378,6 +406,8 @@ def main(argv: list[str] | None = None) -> int:
     except UnicodeDecodeError:
         parser.error(f"input file is not valid UTF-8: {args.input}")
     except PDFExtractionError as error:
+        parser.error(str(error))
+    except WordExtractionError as error:
         parser.error(str(error))
     except WebsiteExtractionError as error:
         parser.error(str(error))

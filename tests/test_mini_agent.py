@@ -1,5 +1,6 @@
 import contextlib
 import io
+import sys
 import tempfile
 import unittest
 from urllib.error import URLError
@@ -9,6 +10,7 @@ from pathlib import Path
 from mini_agent import (
     OFFLINE_FALLBACK,
     PDFExtractionError,
+    WordExtractionError,
     extract_analysis,
     format_report,
     main,
@@ -266,6 +268,34 @@ class MiniAgentTests(unittest.TestCase):
                     PDFExtractionError, "does not contain extractable text"
                 ):
                     read_document(path)
+
+    def test_read_document_extracts_text_from_word_paragraphs(self):
+        document = mock.Mock()
+        document.paragraphs = [
+            mock.Mock(text="Word project update."),
+            mock.Mock(text="The report includes useful details."),
+        ]
+        docx_module = mock.Mock(Document=mock.Mock(return_value=document))
+
+        with mock.patch.dict(sys.modules, {"docx": docx_module}):
+            with tempfile.TemporaryDirectory() as directory:
+                path = Path(directory) / "document.docx"
+                path.write_bytes(b"PK")
+
+                self.assertEqual(
+                    read_document(path),
+                    "Word project update.\nThe report includes useful details.",
+                )
+
+    def test_read_document_rejects_legacy_word_files(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "document.doc"
+            path.write_bytes(b"legacy")
+
+            with self.assertRaisesRegex(
+                WordExtractionError, "only .docx Word files are supported"
+            ):
+                read_document(path)
 
     def test_summarize_website_extracts_readable_html(self):
         response = mock.Mock()

@@ -1,6 +1,6 @@
 # SummarizeIT
 
-`mini_agent.py` is a small Python agent that reads a UTF-8 text file or website, extracts key information, and creates an extractive summary. Website summaries require an internet connection; when a website cannot be reached, the app returns `Please check your Internet Connection`. Local documents continue to work offline. `gui.py` provides the optional PySide6 desktop application.
+`mini_agent.py` is a small Python agent that reads UTF-8 text, PDF, and DOCX files or websites, extracts key information, and creates an extractive summary. Website summaries require an internet connection; when a website cannot be reached, the app returns `Please check your Internet Connection`. Local documents continue to work offline. `gui.py` provides the optional PySide6 desktop application.
 
 ## Windows setup and usage
 
@@ -11,7 +11,7 @@ During installation, enable **Add Python to PATH**. Open a new PowerShell window
 py --version
 ```
 
-The `py` launcher is the recommended Windows command because it selects the installed Python 3 interpreter reliably. The command-line summarizer uses the standard library for text files and `pypdf` for PDF files. The desktop app requires PySide6.
+The `py` launcher is the recommended Windows command because it selects the installed Python 3 interpreter reliably. The command-line summarizer uses `pypdf` for PDF files and `python-docx` for DOCX files. The desktop app requires PySide6.
 
 ## Install as a command-line tool
 
@@ -51,7 +51,8 @@ pyw summarize_it.pyw
 ```
 
 The app features:
-- **Broad file support**: Opens and saves text (`.txt`, `.md`, `.markdown`, `.rst`, `.log`) and text-based PDF documents.
+- **Broad file support**: Opens and saves text (`.txt`, `.md`, `.markdown`, `.rst`, `.log`), text-based PDF documents, and `.docx` Word documents.
+- **Automatic file summaries**: Opening a supported document immediately generates its summary; pasted or typed text can still be summarized with `Ctrl+Enter`.
 - **Drag-and-drop loading**: Drag files directly into the workspace with glowing visual feedback.
 - **Live document metrics**: Real-time word count and estimated reading time for your document, plus summary word count and reduction percentage for the report.
 - **One-click clipboard copy**: Fast **Copy report** button with temporary visual feedback and `Ctrl+Shift+C` shortcut.
@@ -60,7 +61,7 @@ The app features:
 
 ## Dependencies and attribution
 
-The GUI has one direct dependency:
+The project uses these direct dependencies:
 
 - **PySide6**, version 6.12.0, licensed under the GNU Lesser
   General Public License v3.0 (LGPL-3.0), GNU General Public License v3.0
@@ -68,6 +69,9 @@ The GUI has one direct dependency:
   bindings and the Qt desktop libraries used by this application. See the
   [PySide6 licensing page](https://doc.qt.io/qtforpython-6/licenses.html) and
   the [Qt licensing page](https://www.qt.io/licensing) for the official terms.
+
+- **pypdf**, used to extract text from PDF documents.
+- **python-docx**, used to extract paragraphs from `.docx` Word documents.
 
 Installing PySide6 also installs its official runtime components, including
 `PySide6_Essentials`, `PySide6_Addons`, `PySide6_Pdf`, `PySide6_WebEngine`, and
@@ -85,7 +89,7 @@ repository is separate from Qt and does not change Qt's license terms.
 
 ### Desktop app
 
-Double-click `summarize_it.pyw` to open the desktop app without using a terminal. Use **Open document** to load a document, or paste text directly into the editor. To summarize a website, paste its `http://` or `https://` URL into the editor. An internet connection is required; offline website requests return `Please check your Internet Connection`. Adjust the summary length, click **Summarize** (or `Ctrl+Enter`), and use **Copy report** (`Ctrl+Shift+C`) or **Save report** (`Ctrl+S`) to export the result.
+Double-click `summarize_it.pyw` to open the desktop app without using a terminal. Use **Open document** to load a document; supported files are summarized automatically. You can also paste or type text into the editor and press `Ctrl+Enter`. To summarize a website, paste its `http://` or `https://` URL into the editor. An internet connection is required; offline website requests return `Please check your Internet Connection`. Use **Copy report** (`Ctrl+Shift+C`) or **Save report** (`Ctrl+S`) to export the result.
 
 Open PowerShell in the project folder. For example, if the repository is in
 `C:\Users\YourName\SummarizeIT`:
@@ -94,12 +98,13 @@ Open PowerShell in the project folder. For example, if the repository is in
 Set-Location "C:\Users\YourName\SummarizeIT"
 ```
 
-Use quotation marks around paths that contain spaces. The input file can be a UTF-8 text file or a text-based PDF. Scanned/image-only PDFs
-need OCR before they can be summarized.
+Use quotation marks around paths that contain spaces. The input file can be a UTF-8 text file, a text-based PDF, or a `.docx` Word document. Scanned/image-only PDFs
+need OCR before they can be summarized. Legacy `.doc` files are not supported; save them as `.docx` first.
 
 ```powershell
 py mini_agent.py document.txt
 py mini_agent.py document.pdf
+py mini_agent.py document.docx
 py mini_agent.py https://example.com
 py mini_agent.py document.txt --sentences 5 --output report.txt
 py mini_agent.py "C:\Users\YourName\Documents\meeting notes.txt" `
