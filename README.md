@@ -149,6 +149,14 @@ Run the standard-library test suite from the project directory:
 py -m unittest discover -s tests -v
 ```
 
+When PySide6 is installed, run the GUI regression tests in an offscreen Qt
+session with:
+
+```powershell
+$env:QT_QPA_PLATFORM = "offscreen"
+py -m unittest tests.test_gui -v
+```
+
 If `py` is not recognized, reopen the terminal after installing Python or use `python` if that command is available on your machine.
 
 ## Build distributions
