@@ -551,7 +551,7 @@ def main() -> int:
     app.setPalette(dark_palette())
     app.setStyleSheet(stylesheet())
     window = SummarizeWindow()
-    window.show()
+    window.showFullScreen()
     return app.exec()
 
 
