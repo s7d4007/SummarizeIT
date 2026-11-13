@@ -218,8 +218,8 @@ class SummarizeWindow(QMainWindow):
         footer.addWidget(self.status)
         footer.addStretch()
         hint = QLabel(
-            "Ctrl+O open  ·  Ctrl+Shift+V paste  ·  Ctrl+Enter summarize  ·  "
-            "Ctrl+Shift+C copy  ·  Ctrl+S save"
+            "F11 fullscreen  ·  Ctrl+O open  ·  Ctrl+Shift+V paste  ·  "
+            "Ctrl+Enter summarize  ·  Ctrl+Shift+C copy  ·  Ctrl+S save"
         )
         hint.setObjectName("HintLabel")
         footer.addWidget(hint)
@@ -260,6 +260,8 @@ class SummarizeWindow(QMainWindow):
         copy_shortcut.activated.connect(self.copy_report)
         paste_shortcut = QShortcut(QKeySequence("Ctrl+Shift+V"), self)
         paste_shortcut.activated.connect(self.paste_text)
+        fullscreen_shortcut = QShortcut(QKeySequence("F11"), self)
+        fullscreen_shortcut.activated.connect(self.toggle_fullscreen)
         summarize_shortcut = QShortcut(QKeySequence("Ctrl+Return"), self)
         summarize_shortcut.activated.connect(self.summarize)
 
@@ -378,6 +380,14 @@ class SummarizeWindow(QMainWindow):
         self.save_button.setEnabled(False)
         self.copy_button.setEnabled(False)
         self.status.setText("Pasted text from clipboard.")
+
+    def toggle_fullscreen(self) -> None:
+        if self.isFullScreen():
+            self.showNormal()
+            self.status.setText("Windowed view enabled.")
+        else:
+            self.showFullScreen()
+            self.status.setText("Fullscreen view enabled.")
 
     def copy_report(self) -> None:
         if not self.report_text:
